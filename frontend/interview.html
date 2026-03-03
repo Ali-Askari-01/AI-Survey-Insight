@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview — InsightAI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary-50: #eef2ff; --primary-100: #e0e7ff; --primary-200: #c7d2fe;
+            --primary-500: #6366f1; --primary-600: #4f46e5; --primary-700: #4338ca;
+            --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+            --neutral-50: #fafafa; --neutral-100: #f5f5f5; --neutral-200: #e5e5e5;
+            --neutral-300: #d4d4d4; --neutral-500: #737373; --neutral-700: #404040;
+            --neutral-900: #171717; --border: #e5e5e5;
+            --border: #e5e5e5;
+            --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 20px; color: var(--neutral-900);
+        }
+        .container { width: 100%; max-width: 700px; }
+
+        /* ─── Cards ─── */
+        .card {
+            background: white; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+            overflow: hidden; animation: slideUp 0.4s ease;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+            padding: 28px 32px; color: white; text-align: center;
+        }
+        .card-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+        .card-header p { opacity: 0.85; font-size: 0.95rem; }
+        .card-body { padding: 32px; }
+
+        /* ─── Channel Cards ─── */
+        .channel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
+        .channel-card {
+            border: 2px solid var(--neutral-200); border-radius: var(--radius-lg);
+            padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.25s ease;
+            background: white;
+        }
+        .channel-card:hover { border-color: var(--primary-500); transform: translateY(-4px); box-shadow: var(--shadow-md); }
+        .channel-card.selected { border-color: var(--primary-500); background: var(--primary-50); }
+        .channel-card .icon { font-size: 2.2rem; margin-bottom: 12px; }
+        .channel-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+        .channel-card p { font-size: 0.82rem; color: var(--neutral-500); line-height: 1.4; }
+
+        /* ─── Form ─── */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+        .form-group input {
+            width: 100%; padding: 12px 14px; border: 2px solid var(--neutral-200);
+            border-radius: var(--radius-md); font-size: 1rem; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus { outline: none; border-color: var(--primary-500); }
+        .error-text { color: var(--danger); font-size: 0.85rem; margin-top: 6px; display: none; }
+
+        /* ─── Buttons ─── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px;
+            border: none; border-radius: var(--radius-md); font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
+        }
+        .btn-primary { background: var(--primary-500); color: white; }
+        .btn-primary:hover { background: var(--primary-600); transform: translateY(-1px); }
+        .btn-primary:disabled { background: var(--neutral-300); cursor: not-allowed; transform: none; }
+        .btn-block { width: 100%; justify-content: center; }
+        .btn-back { background: none; border: none; color: var(--neutral-500); cursor: pointer; font-size: 0.9rem; padding: 8px 0; }
+        .btn-back:hover { color: var(--primary-500); }
+
+        /* ─── Chat Interface ─── */
+        .chat-container { display: flex; flex-direction: column; height: 70vh; max-height: 600px; }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+            background: var(--neutral-50);
+        }
+        .msg { max-width: 80%; padding: 12px 16px; border-radius: var(--radius-lg); font-size: 0.95rem; line-height: 1.5; animation: msgIn 0.3s ease; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-ai { align-self: flex-start; background: white; border: 1px solid var(--neutral-200); border-bottom-left-radius: 4px; }
+        .msg-user { align-self: flex-end; background: var(--primary-500); color: white; border-bottom-right-radius: 4px; }
+        .msg-label { font-size: 0.75rem; color: var(--neutral-500); margin-bottom: 4px; font-weight: 600; }
+        .typing-dots { display: flex; gap: 4px; padding: 12px 16px; align-self: flex-start; }
+        .typing-dots span { width: 8px; height: 8px; background: var(--neutral-300); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        .chat-input-area {
+            display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--neutral-200); background: white;
+        }
+        .chat-input-area textarea {
+            flex: 1; padding: 12px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md);
+            resize: none; font-family: inherit; font-size: 0.95rem; min-height: 48px; max-height: 120px;
+        }
+        .chat-input-area textarea:focus { outline: none; border-color: var(--primary-500); }
+        .chat-input-area button {
+            padding: 0 18px; background: var(--primary-500); color: white; border: none;
+            border-radius: var(--radius-md); font-size: 1.1rem; cursor: pointer; transition: background 0.2s;
+        }
+        .chat-input-area button:hover { background: var(--primary-600); }
+        .chat-input-area button:disabled { background: var(--neutral-300); cursor: not-allowed; }
+
+        /* ─── Web Form Interface ─── */
+        .webform-container { padding: 32px; }
+        .webform-question { margin-bottom: 28px; animation: slideUp 0.4s ease; }
+        .webform-question h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
+        .webform-question .q-number { color: var(--primary-500); font-weight: 700; margin-right: 4px; }
+        .webform-question textarea {
+            width: 100%; padding: 14px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md);
+            font-family: inherit; font-size: 0.95rem; min-height: 100px; resize: vertical;
+        }
+        .webform-question textarea:focus { outline: none; border-color: var(--primary-500); }
+        .progress-bar { height: 6px; background: var(--neutral-200); border-radius: 3px; overflow: hidden; margin-bottom: 24px; }
+        .progress-bar-fill { height: 100%; background: var(--primary-500); transition: width 0.4s ease; border-radius: 3px; }
+
+        /* ─── Audio Interface ─── */
+        .audio-container { text-align: center; padding: 40px 32px; }
+        .mic-btn {
+            width: 100px; height: 100px; border-radius: 50%; border: none;
+            background: var(--primary-500); color: white; font-size: 2.5rem;
+            cursor: pointer; transition: all 0.3s; margin: 24px auto; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .mic-btn:hover { transform: scale(1.05); background: var(--primary-600); }
+        .mic-btn.recording { background: var(--danger); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 70% { box-shadow: 0 0 0 20px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+        .audio-status { font-size: 1rem; color: var(--neutral-500); margin-top: 16px; }
+        .audio-transcript { text-align: left; margin-top: 20px; padding: 16px; background: var(--neutral-50); border-radius: var(--radius-md); font-size: 0.9rem; max-height: 200px; overflow-y: auto; }
+
+        /* ─── Completion ─── */
+        .completion-screen { text-align: center; padding: 48px 32px; }
+        .completion-screen .icon { font-size: 4rem; color: var(--success); margin-bottom: 16px; }
+        .completion-screen h2 { font-size: 1.5rem; margin-bottom: 8px; }
+        .completion-screen p { color: var(--neutral-500); }
+
+        /* ─── Utilities ─── */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mt-2 { margin-top: 16px; }
+        .mt-3 { margin-top: 24px; }
+        .mb-2 { margin-bottom: 16px; }
+        .text-muted { color: var(--neutral-500); }
+
+        /* ─── Toast ─── */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast {
+            background: white; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 10px;
+            box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px;
+            animation: slideIn 0.3s ease; min-width: 280px;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        .toast-error { border-left: 4px solid var(--danger); }
+        .toast-success { border-left: 4px solid var(--success); }
+        .toast-warning { border-left: 4px solid var(--warning); }
+
+        /* ─── Mobile Responsive ─── */
+        @media (max-width: 640px) {
+            body { padding: 8px; align-items: flex-start; padding-top: 16px; }
+            .container { max-width: 100%; }
+            .card-header { padding: 20px 16px; }
+            .card-header h1 { font-size: 1.2rem; }
+            .card-body { padding: 20px 16px; }
+            .channel-grid { grid-template-columns: 1fr; gap: 12px; }
+            .channel-card { padding: 16px; }
+            .channel-card .icon { font-size: 1.8rem; }
+            .chat-container { height: 75vh; max-height: none; }
+            .chat-messages { padding: 12px; }
+            .msg { max-width: 90%; font-size: 0.9rem; padding: 10px 14px; }
+            .chat-input-area { padding: 10px; gap: 6px; }
+            .chat-input-area textarea { padding: 10px; font-size: 0.9rem; }
+            .chat-input-area button { padding: 0 14px; min-width: 44px; min-height: 44px; }
+            .webform-container { padding: 20px 16px; }
+            .webform-question textarea { min-height: 80px; }
+            .audio-container { padding: 24px 16px; }
+            .mic-btn { width: 80px; height: 80px; font-size: 2rem; }
+            .btn { padding: 12px 20px; min-height: 44px; }
+            .completion-screen { padding: 32px 16px; }
+            .toast { min-width: auto; max-width: calc(100vw - 40px); }
+        }
+
+        @media (max-width: 380px) {
+            .card-header h1 { font-size: 1rem; }
+            .webform-question h3 { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app-root">
+    <!-- Loading state -->
+    <div class="card" id="screen-loading">
+        <div class="card-body text-center" style="padding:60px">
+            <div class="typing-dots" style="justify-content:center;margin-bottom:16px"><span></span><span></span><span></span></div>
+            <p class="text-muted">Loading survey...</p>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/**
+ * Interview App — Standalone respondent-facing interview experience.
+ * Reads share_code (and optional channel) from URL path.
+ * Flow: Load Survey Info → Email Login → Choose/Start Channel → Conduct Interview → Complete
+ */
+const InterviewApp = {
+    shareCode: null,
+    channel: null,       // 'web-form', 'chat', 'audio' or null (landing)
+    surveyInfo: null,
+    sessionId: null,
+    respondentEmail: null,
+    respondentName: null,
+    questions: [],
+    currentQIndex: 0,
+    chatHistory: [],
+    mediaRecorder: null,
+    isRecording: false,
+
+    // ── API helpers (standalone, no dependency on main app API) ──
+    async api(method, endpoint, data = null) {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (data && (method === 'POST' || method === 'PUT')) opts.body = JSON.stringify(data);
+        const res = await fetch(endpoint, opts);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        return res.json();
+    },
+
+    toast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-exclamation-circle';
+        const color = type === 'success' ? 'var(--success)' : type === 'warning' ? 'var(--warning)' : 'var(--danger)';
+        t.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${this.esc(message)}`;
+        container.appendChild(t);
+        setTimeout(() => t.remove(), 4000);
+    },
+
+    // ── Init ──
+    async init() {
+        // Parse URL: /interview/{shareCode} or /interview/{shareCode}/{channel}
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        if (parts.length >= 2 && parts[0] === 'interview') {
+            this.shareCode = parts[1];
+            if (parts[2]) this.channel = parts[2];
+        }
+
+        if (!this.shareCode) {
+            this.showError('Invalid interview link. Please check the URL.');
+            return;
+        }
+
+        try {
+            this.surveyInfo = await this.api('GET', `/api/publish/s/${this.shareCode}`);
+        } catch (e) {
+            this.showError('This survey was not found or is no longer active.');
+            return;
+        }
+
+        if (this.surveyInfo.status !== 'active') {
+            this.showError('This survey is no longer accepting responses.');
+            return;
+        }
+
+        // Show email screen
+        this.showEmailScreen();
+    },
+
+    showError(message) {
+        document.getElementById('app-root').innerHTML = `
+            <div class="card">
+                <div class="card-header" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+                    <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:8px"></i>
+                    <h1>Oops!</h1>
+                </div>
+                <div class="card-body text-center">
+                    <p style="font-size:1.05rem">${this.esc(message)}</p>
+                    <p class="text-muted mt-2">If you believe this is an error, please contact the survey creator.</p>
+                </div>
+            </div>`;
+    },
+
+    // ── Email Login Screen ──
+    showEmailScreen() {
+        const info = this.surveyInfo;
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-email">
+                <div class="card-header">
+                    <i class="fas fa-brain" style="font-size:1.8rem;margin-bottom:8px"></i>
+                    <h1>${this.esc(info.title)}</h1>
+                    <p>You've been invited to share your thoughts and feedback</p>
+                </div>
+                <div class="card-body">
+                    <p style="margin-bottom:20px;line-height:1.6">
+                        <i class="fas fa-info-circle" style="color:var(--primary-500)"></i>
+                        This interview is powered by AI. Your responses will be kept confidential and used for research purposes.
+                        ${info.require_email ? 'Please sign in with your email to begin.' : 'Enter your email to begin (optional).'}
+                    </p>
+                    <div class="form-group">
+                        <label for="resp-email"><i class="fas fa-envelope"></i> Email Address</label>
+                        <input type="email" id="resp-email" placeholder="you@example.com" ${info.require_email ? 'required' : ''}>
+                        <p class="error-text" id="email-error">Please enter a valid email address</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="resp-name"><i class="fas fa-user"></i> Your Name (optional)</label>
+                        <input type="text" id="resp-name" placeholder="Jane Smith">
+                    </div>
+                    <button class="btn btn-primary btn-block" id="btn-start">
+                        <i class="fas fa-arrow-right"></i> Continue
+                    </button>
+                </div>
+            </div>`;
+
+        document.getElementById('btn-start').addEventListener('click', () => this.handleEmailSubmit());
+        document.getElementById('resp-email').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleEmailSubmit();
+        });
+    },
+
+    async handleEmailSubmit() {
+        const emailEl = document.getElementById('resp-email');
+        const nameEl = document.getElementById('resp-name');
+        const email = emailEl.value.trim();
+        const name = nameEl.value.trim();
+
+        if (this.surveyInfo.require_email && !email) {
+            document.getElementById('email-error').style.display = 'block';
+            return;
+        }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            document.getElementById('email-error').style.display = 'block';
+            return;
+        }
+
+        this.respondentEmail = email || 'anonymous@respondent.local';
+        this.respondentName = name;
+
+        // Join the survey as a respondent
+        try {
+            const joinResp = await this.api('POST', '/api/publish/join', {
+                email: this.respondentEmail,
+                name: this.respondentName,
+                share_code: this.shareCode,
+                channel: this.channel || 'web-form'
+            });
+            // Use session from join to avoid creating duplicate sessions
+            if (joinResp.session_id) {
+                this.sessionId = joinResp.session_id;
+            }
+        } catch (e) {
+            console.warn('Join failed (may already be joined):', e.message);
+        }
+
+        // If consent form exists, show it before proceeding
+        if (this.surveyInfo.consent_form_text && this.surveyInfo.consent_form_text.trim()) {
+            this.showConsentForm();
+        } else if (this.channel) {
+            await this.startInterview(this.channel);
+        } else {
+            this.showChannelPicker();
+        }
+    },
+
+    // ── Consent Form Screen ──
+    showConsentForm() {
+        const consentText = this.surveyInfo.consent_form_text;
+        // Convert plain text paragraphs to formatted HTML
+        const formatted = this.esc(consentText)
+            .replace(/^([A-Z][A-Z\s&]+)$/gm, '<h4 style="color:var(--primary-700);margin-top:16px;margin-bottom:6px;font-size:0.95rem">$1</h4>')
+            .replace(/\n\n/g, '</p><p style="margin-bottom:10px;line-height:1.6">')
+            .replace(/\n/g, '<br>');
+
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-consent">
+                <div class="card-header" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">
+                    <i class="fas fa-file-signature" style="font-size:1.8rem;margin-bottom:8px"></i>
+                    <h1>Participant Consent Form</h1>
+                    <p>${this.esc(this.surveyInfo.title)}</p>
+                </div>
+                <div class="card-body" style="max-height:55vh;overflow-y:auto;padding:24px 28px">
+                    <div style="font-size:0.92rem;color:var(--neutral-700)">
+                        <p style="margin-bottom:10px;line-height:1.6">${formatted}</p>
+                    </div>
+                </div>
+                <div style="padding:20px 28px;border-top:1px solid var(--border);background:var(--neutral-50)">
+                    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
+                        <input type="checkbox" id="consent-checkbox" style="margin-top:4px;width:18px;height:18px;cursor:pointer;accent-color:var(--primary-500)">
+                        <label for="consent-checkbox" style="font-size:0.9rem;cursor:pointer;line-height:1.5">
+                            I have read and understood this consent form. I voluntarily agree to participate in this research study.
+                        </label>
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <button class="btn btn-primary btn-block" id="btn-consent-agree" disabled style="opacity:0.5">
+                            <i class="fas fa-check-circle"></i> I Agree — Continue
+                        </button>
+                        <button class="btn btn-block" id="btn-consent-decline" style="background:var(--neutral-200);color:var(--neutral-600)">
+                            <i class="fas fa-times"></i> Decline
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+        const checkbox = document.getElementById('consent-checkbox');
+        const agreeBtn = document.getElementById('btn-consent-agree');
+
+        checkbox.addEventListener('change', () => {
+            agreeBtn.disabled = !checkbox.checked;
+            agreeBtn.style.opacity = checkbox.checked ? '1' : '0.5';
+        });
+
+        agreeBtn.addEventListener('click', async () => {
+            if (this.channel) {
+                await this.startInterview(this.channel);
+            } else {
+                this.showChannelPicker();
+            }
+        });
+
+        document.getElementById('btn-consent-decline').addEventListener('click', () => {
+            document.getElementById('app-root').innerHTML = `
+                <div class="card">
+                    <div class="card-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                        <i class="fas fa-hand-paper" style="font-size:2rem;margin-bottom:8px"></i>
+                        <h1>Thank You</h1>
+                    </div>
+                    <div class="card-body text-center" style="padding:40px">
+                        <p style="font-size:1.05rem;margin-bottom:12px">You have chosen not to participate in this study.</p>
+                        <p class="text-muted">We respect your decision. You may close this window.</p>
+                        <p class="text-muted" style="margin-top:20px;font-size:0.85rem">If you change your mind, you can return to this link at any time.</p>
+                    </div>
+                </div>`;
+        });
+    },
+
+    // ── Channel Picker ──
+    showChannelPicker() {
+        const info = this.surveyInfo;
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-channels">
+                <div class="card-header">
+                    <h1>Choose Your Interview Style</h1>
+                    <p>How would you like to share your feedback?</p>
+                </div>
+                <div class="card-body">
+                    <div class="channel-grid">
+                        ${info.web_form_enabled ? `
+                        <div class="channel-card" data-channel="web-form">
+                            <div class="icon" style="color:var(--primary-500)"><i class="fas fa-clipboard-list"></i></div>
+                            <h3>Web Form</h3>
+                            <p>Answer questions one at a time at your own pace</p>
+                        </div>` : ''}
+                        ${info.chat_enabled ? `
+                        <div class="channel-card" data-channel="chat">
+                            <div class="icon" style="color:#8b5cf6"><i class="fas fa-comments"></i></div>
+                            <h3>Chat</h3>
+                            <p>Have a natural conversation with our AI interviewer</p>
+                        </div>` : ''}
+                        ${info.audio_enabled ? `
+                        <div class="channel-card" data-channel="audio">
+                            <div class="icon" style="color:var(--warning)"><i class="fas fa-microphone"></i></div>
+                            <h3>Voice</h3>
+                            <p>Speak your answers naturally — AI transcribes for you</p>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+
+        document.querySelectorAll('.channel-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.channel = card.dataset.channel;
+                this.startInterview(this.channel);
+            });
+        });
+    },
+
+    // ── Start Interview Session ──
+    async startInterview(channel) {
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-loading">
+                <div class="card-body text-center" style="padding:60px">
+                    <div class="typing-dots" style="justify-content:center;margin-bottom:16px"><span></span><span></span><span></span></div>
+                    <p class="text-muted">Preparing your interview...</p>
+                </div>
+            </div>`;
+
+        try {
+            // Create an interview session only if we don't already have one from /publish/join
+            if (!this.sessionId) {
+                const session = await this.api('POST', '/api/interviews/sessions', {
+                    survey_id: this.surveyInfo.survey_id,
+                    channel: channel === 'audio' ? 'voice' : (channel === 'web-form' ? 'web' : channel),
+                });
+                this.sessionId = session.session_id || session.id;
+            }
+            this._isFollowUp = false;
+
+            // Load survey questions
+            try {
+                const surveyData = await this.api('GET', `/api/surveys/${this.surveyInfo.survey_id}`);
+                this.questions = surveyData.questions || [];
+            } catch (e) {
+                this.questions = [];
+            }
+
+            // Route to channel UI
+            if (channel === 'web-form') {
+                this.showWebForm();
+            } else if (channel === 'chat') {
+                this.showChat();
+            } else if (channel === 'audio') {
+                this.showAudio();
+            }
+        } catch (e) {
+            this.toast('Failed to start interview: ' + e.message, 'error');
+            this.showChannelPicker();
+        }
+    },
+
+    // ═══════════════════════════════════════════
+    // WEB FORM CHANNEL
+    // ═══════════════════════════════════════════
+    showWebForm() {
+        this.currentQIndex = 0;
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-webform">
+                <div class="card-header" style="padding:20px 32px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
+                        <span id="wf-counter" style="font-size:0.85rem;opacity:0.8">1 / ${this.questions.length || '?'}</span>
+                    </div>
+                </div>
+                <div class="webform-container">
+                    <div class="progress-bar"><div class="progress-bar-fill" id="wf-progress" style="width:0%"></div></div>
+                    <div id="wf-question-area"></div>
+                    <div style="display:flex;justify-content:space-between;margin-top:24px">
+                        <button class="btn-back hidden" id="wf-prev"><i class="fas fa-arrow-left"></i> Previous</button>
+                        <div></div>
+                        <button class="btn btn-primary" id="wf-next"><i class="fas fa-paper-plane"></i> Next</button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('wf-next').addEventListener('click', () => this.webFormNext());
+        document.getElementById('wf-prev').addEventListener('click', () => this.webFormPrev());
+        this.renderWebFormQuestion();
+    },
+
+    renderWebFormQuestion() {
+        const area = document.getElementById('wf-question-area');
+        const q = this.questions[this.currentQIndex];
+        if (!q) {
+            this.completeInterview();
+            return;
+        }
+
+        const total = this.questions.length;
+        const pct = ((this.currentQIndex) / total) * 100;
+        document.getElementById('wf-progress').style.width = pct + '%';
+        document.getElementById('wf-counter').textContent = `${this.currentQIndex + 1} / ${total}`;
+        const prevBtn = document.getElementById('wf-prev');
+        if (prevBtn) prevBtn.classList.toggle('hidden', this.currentQIndex === 0);
+
+        const nextBtn = document.getElementById('wf-next');
+        if (this.currentQIndex === total - 1) {
+            nextBtn.innerHTML = '<i class="fas fa-check"></i> Finish';
+        } else {
+            nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
+        }
+
+        area.innerHTML = `
+            <div class="webform-question">
+                <h3><span class="q-number">Q${this.currentQIndex + 1}.</span> ${this.esc(q.question_text)}</h3>
+                <textarea id="wf-answer" placeholder="Type your answer here..." rows="4"></textarea>
+            </div>`;
+
+        document.getElementById('wf-answer').focus();
+        document.getElementById('wf-answer').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) this.webFormNext();
+        });
+    },
+
+    async webFormNext() {
+        const answer = document.getElementById('wf-answer')?.value.trim();
+
+        // If this is a follow-up answer, fire-and-forget & advance to next main question
+        if (this._isFollowUp) {
+            this._isFollowUp = false;
+            if (answer) {
+                this.api('POST', '/api/interviews/respond', {
+                    session_id: this.sessionId,
+                    question_id: this.questions[this.currentQIndex]?.id,
+                    response_text: '[Follow-up] ' + answer
+                }).catch(e => console.warn('Follow-up submit failed:', e.message));
+            }
+            this.currentQIndex++;
+            if (this.currentQIndex >= this.questions.length) {
+                this.completeInterview();
+            } else {
+                this.renderWebFormQuestion();
+            }
+            return;
+        }
+
+        // Main question — require an answer
+        if (!answer) {
+            this.toast('Please provide an answer before continuing.', 'error');
+            return;
+        }
+
+        const qId = this.questions[this.currentQIndex]?.id;
+        const nextBtn = document.getElementById('wf-next');
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+
+        try {
+            const resp = await this.api('POST', '/api/interviews/respond', {
+                session_id: this.sessionId,
+                question_id: qId,
+                response_text: answer
+            });
+
+            // If AI wants to probe deeper, show follow-up question
+            if (resp.follow_up?.should_probe_deeper) {
+                this._isFollowUp = true;
+                const area = document.getElementById('wf-question-area');
+                area.innerHTML = `
+                    <div class="webform-question" style="border-left:3px solid var(--primary-500);padding-left:16px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--primary-600);font-size:0.85rem;font-weight:600">
+                            <i class="fas fa-lightbulb"></i> Follow-up Question
+                        </div>
+                        <h3>${this.esc(resp.follow_up.follow_up)}</h3>
+                        <textarea id="wf-answer" placeholder="Share more details..." rows="4"></textarea>
+                        <p style="font-size:0.75rem;color:var(--neutral-400);margin-top:8px">
+                            <i class="fas fa-forward"></i> You can also skip this by clicking Next
+                        </p>
+                    </div>`;
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
+                document.getElementById('wf-answer').focus();
+                document.getElementById('wf-answer').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) this.webFormNext();
+                });
+                return;
+            }
+        } catch (e) {
+            console.warn('Response submit failed:', e.message);
+            this.toast('Failed to save response. Your answer will still be counted — moving on.', 'warning');
+        }
+
+        // No follow-up needed — advance
+        nextBtn.disabled = false;
+        nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
+        this.currentQIndex++;
+        if (this.currentQIndex >= this.questions.length) {
+            this.completeInterview();
+        } else {
+            this.renderWebFormQuestion();
+        }
+    },
+
+    webFormPrev() {
+        if (this.currentQIndex > 0) {
+            this.currentQIndex--;
+            this.renderWebFormQuestion();
+        }
+    },
+
+    // ═══════════════════════════════════════════
+    // CHAT CHANNEL
+    // ═══════════════════════════════════════════
+    showChat() {
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-chat">
+                <div class="card-header" style="padding:16px 24px;display:flex;align-items:center;gap:12px">
+                    <i class="fas fa-robot" style="font-size:1.5rem"></i>
+                    <div>
+                        <h1 style="font-size:1rem;margin:0">AI Interviewer</h1>
+                        <p style="font-size:0.8rem;margin:0;opacity:0.8">${this.esc(this.surveyInfo.title)}</p>
+                    </div>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-area">
+                        <textarea id="chat-input" placeholder="Type your answer..." rows="1"></textarea>
+                        <button id="chat-send"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('chat-send').addEventListener('click', () => this.chatSend());
+        document.getElementById('chat-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.chatSend(); }
+        });
+
+        // Auto-resize textarea
+        const textarea = document.getElementById('chat-input');
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        });
+
+        // Start the chat with AI's first message
+        this.chatStartConversation();
+    },
+
+    async chatStartConversation() {
+        this.chatHistory = [];
+        this.addChatMessage('ai', "Hi there! I'm your AI interviewer. Thank you for taking the time to share your thoughts. Let's get started — I'll ask you some questions and feel free to share as much or as little as you'd like.");
+
+        // Get first AI question
+        if (this.questions.length > 0) {
+            setTimeout(() => {
+                this.addChatMessage('ai', this.questions[0].question_text);
+                this.chatHistory.push({ role: 'ai', message: this.questions[0].question_text });
+                this.currentQIndex = 0;
+            }, 1500);
+        } else {
+            // Use the AI chat endpoint to drive the conversation
+            this.showTyping();
+            try {
+                const resp = await this.api('POST', '/api/interviews/chat', {
+                    session_id: this.sessionId,
+                    message: '__START__',
+                    history: []
+                });
+                this.hideTyping();
+                if (resp.ai_message) {
+                    this.addChatMessage('ai', resp.ai_message);
+                    this.chatHistory.push({ role: 'ai', message: resp.ai_message });
+                }
+            } catch (e) {
+                this.hideTyping();
+                this.addChatMessage('ai', "Let's begin — what's your overall experience been like?");
+            }
+        }
+    },
+
+    async chatSend() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = '';
+        input.style.height = 'auto';
+        this.addChatMessage('user', text);
+        this.chatHistory.push({ role: 'user', message: text });
+
+        // NOTE: /chat endpoint already stores the response AND generates AI follow-up,
+        // so we skip the separate /respond call to avoid duplicate storage & wasted Gemini calls.
+
+        // Get next AI response
+        this.showTyping();
+        document.getElementById('chat-send').disabled = true;
+
+        try {
+            const resp = await this.api('POST', '/api/interviews/chat', {
+                session_id: this.sessionId,
+                message: text,
+                history: this.chatHistory.slice(-10)
+            });
+            this.hideTyping();
+            document.getElementById('chat-send').disabled = false;
+
+            if (resp.interview_complete || resp.is_complete) {
+                this.addChatMessage('ai', resp.ai_message || "Thank you so much for sharing your thoughts! Your feedback is incredibly valuable.");
+                setTimeout(() => this.completeInterview(), 2000);
+                return;
+            }
+
+            if (resp.ai_message) {
+                this.addChatMessage('ai', resp.ai_message);
+                this.chatHistory.push({ role: 'ai', message: resp.ai_message });
+                this.currentQIndex++;
+            }
+        } catch (e) {
+            this.hideTyping();
+            document.getElementById('chat-send').disabled = false;
+            this.toast('Message failed to send. Trying next question...', 'warning');
+            // If chat API fails, move to next question manually
+            this.currentQIndex++;
+            if (this.currentQIndex < this.questions.length) {
+                this.addChatMessage('ai', this.questions[this.currentQIndex].question_text);
+                this.chatHistory.push({ role: 'ai', message: this.questions[this.currentQIndex].question_text });
+            } else {
+                this.addChatMessage('ai', "Thank you for your responses! That concludes our interview.");
+                setTimeout(() => this.completeInterview(), 2000);
+            }
+        }
+        input.focus();
+    },
+
+    addChatMessage(role, text) {
+        const messages = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = `msg msg-${role}`;
+        const label = role === 'ai' ? '<div class="msg-label"><i class="fas fa-robot"></i> AI Interviewer</div>' : '';
+        div.innerHTML = label + this.esc(text);
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    },
+
+    showTyping() {
+        const messages = document.getElementById('chat-messages');
+        if (!messages) return;
+        const dots = document.createElement('div');
+        dots.className = 'typing-dots';
+        dots.id = 'typing-indicator';
+        dots.innerHTML = '<span></span><span></span><span></span>';
+        messages.appendChild(dots);
+        messages.scrollTop = messages.scrollHeight;
+    },
+
+    hideTyping() {
+        document.getElementById('typing-indicator')?.remove();
+    },
+
+    // ═══════════════════════════════════════════
+    // AUDIO CHANNEL
+    // ═══════════════════════════════════════════
+    showAudio() {
+        this.currentQIndex = 0;
+        document.getElementById('app-root').innerHTML = `
+            <div class="card" id="screen-audio">
+                <div class="card-header">
+                    <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
+                    <p id="audio-counter">Question 1 of ${this.questions.length || '?'}</p>
+                </div>
+                <div class="audio-container">
+                    <div id="audio-question" style="font-size:1.15rem;font-weight:600;margin-bottom:8px"></div>
+                    <p class="text-muted mb-2">Tap the microphone and speak your answer</p>
+                    <button class="mic-btn" id="mic-btn"><i class="fas fa-microphone"></i></button>
+                    <p class="audio-status" id="audio-status">Tap to start recording</p>
+                    <div class="audio-transcript hidden" id="audio-transcript"></div>
+                    <div class="mt-3 hidden" id="audio-actions">
+                        <button class="btn btn-primary" id="audio-submit"><i class="fas fa-check"></i> Submit & Next</button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('mic-btn').addEventListener('click', () => this.toggleRecording());
+        document.getElementById('audio-submit').addEventListener('click', () => this.audioSubmit());
+        this.renderAudioQuestion();
+    },
+
+    renderAudioQuestion() {
+        const q = this.questions[this.currentQIndex];
+        if (!q) { this.completeInterview(); return; }
+        document.getElementById('audio-question').textContent = q.question_text;
+        document.getElementById('audio-counter').textContent = `Question ${this.currentQIndex + 1} of ${this.questions.length}`;
+        document.getElementById('audio-transcript').classList.add('hidden');
+        document.getElementById('audio-transcript').textContent = '';
+        document.getElementById('audio-actions').classList.add('hidden');
+        document.getElementById('audio-status').textContent = 'Tap to start recording';
+    },
+
+    async toggleRecording() {
+        const btn = document.getElementById('mic-btn');
+        const status = document.getElementById('audio-status');
+
+        // Check for browser support
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+            this.toast('Audio recording is not supported in this browser. Please use Chrome or Firefox.', 'error');
+            return;
+        }
+
+        if (this.isRecording) {
+            // Stop recording
+            this.isRecording = false;
+            btn.classList.remove('recording');
+            btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            status.textContent = 'Processing audio...';
+
+            if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                this.mediaRecorder.stop();
+            }
+        } else {
+            // Start recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+
+                this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                this.mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    await this.processAudioBlob(blob);
+                };
+
+                this.mediaRecorder.start();
+                this.isRecording = true;
+                btn.classList.add('recording');
+                btn.innerHTML = '<i class="fas fa-stop"></i>';
+                status.textContent = 'Recording... Tap to stop';
+            } catch (e) {
+                this.toast('Microphone access denied. Please allow microphone access.', 'error');
+            }
+        }
+    },
+
+    async processAudioBlob(blob) {
+        const status = document.getElementById('audio-status');
+        const transcriptEl = document.getElementById('audio-transcript');
+        const actions = document.getElementById('audio-actions');
+
+        try {
+            // Send to transcription endpoint
+            const formData = new FormData();
+            formData.append('file', blob, 'recording.webm');
+            const res = await fetch('/api/interviews/transcribe', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Transcription failed');
+            const data = await res.json();
+
+            const text = data.text || data.transcript || '';
+            if (text) {
+                transcriptEl.textContent = text;
+                transcriptEl.classList.remove('hidden');
+                actions.classList.remove('hidden');
+                status.textContent = 'Transcribed! Review and submit:';
+                this._lastTranscript = text;
+            } else {
+                status.textContent = "Couldn't transcribe. Try again.";
+            }
+        } catch (e) {
+            status.textContent = '';
+            status.innerHTML = `Transcription failed. <button onclick="InterviewApp.retryTranscription()" style="background:var(--primary-500);color:#fff;border:none;padding:6px 16px;border-radius:var(--radius-md);cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-redo"></i> Try Again</button>`;
+            this._lastAudioBlob = blob;
+        }
+    },
+
+    async retryTranscription() {
+        if (this._lastAudioBlob) {
+            await this.processAudioBlob(this._lastAudioBlob);
+        }
+    },
+
+    async audioSubmit() {
+        const text = this._lastTranscript;
+
+        // If this is a follow-up answer, fire-and-forget & advance
+        if (this._isFollowUp) {
+            this._isFollowUp = false;
+            if (text) {
+                this.api('POST', '/api/interviews/respond', {
+                    session_id: this.sessionId,
+                    question_id: this.questions[this.currentQIndex]?.id,
+                    response_text: '[Follow-up] ' + text
+                }).catch(e => console.warn('Follow-up submit failed:', e.message));
+            }
+            this.currentQIndex++;
+            if (this.currentQIndex >= this.questions.length) {
+                this.completeInterview();
+            } else {
+                this.renderAudioQuestion();
+            }
+            return;
+        }
+
+        if (!text) return;
+
+        const submitBtn = document.getElementById('audio-submit');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+
+        try {
+            const resp = await this.api('POST', '/api/interviews/respond', {
+                session_id: this.sessionId,
+                question_id: this.questions[this.currentQIndex]?.id,
+                response_text: text
+            });
+
+            // If AI wants to probe deeper, show follow-up
+            if (resp.follow_up?.should_probe_deeper) {
+                this._isFollowUp = true;
+                const qEl = document.getElementById('audio-question');
+                qEl.innerHTML = `<span style="color:var(--primary-600);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(resp.follow_up.follow_up)}`;
+                document.getElementById('audio-transcript').classList.add('hidden');
+                document.getElementById('audio-actions').classList.add('hidden');
+                document.getElementById('audio-status').textContent = 'Tap to record your follow-up answer (or tap Submit to skip)';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit & Next';
+                this._lastTranscript = '';
+                return;
+            }
+        } catch (e) {
+            console.warn('Response submit failed:', e.message);
+            this.toast('Failed to save response. Your answer will still be counted — moving on.', 'warning');
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit & Next';
+        this.currentQIndex++;
+        if (this.currentQIndex >= this.questions.length) {
+            this.completeInterview();
+        } else {
+            this.renderAudioQuestion();
+        }
+    },
+
+    // ═══════════════════════════════════════════
+    // COMPLETION
+    // ═══════════════════════════════════════════
+    async completeInterview() {
+        // Save transcript and complete session
+        let hadError = false;
+        try {
+            await this.api('POST', `/api/interviews/sessions/${this.sessionId}/complete`);
+        } catch (e) { console.warn('Complete failed:', e.message); hadError = true; }
+
+        try {
+            await this.api('POST', `/api/publish/transcripts/${this.sessionId}`);
+        } catch (e) { console.warn('Transcript save failed:', e.message); hadError = true; }
+
+        if (hadError) this.toast('Some data may not have saved. Your responses were still recorded.', 'warning');
+
+        document.getElementById('app-root').innerHTML = `
+            <div class="card">
+                <div class="card-header" style="background:linear-gradient(135deg,#22c55e,#16a34a)">
+                    <i class="fas fa-check-circle" style="font-size:2.5rem;margin-bottom:8px"></i>
+                    <h1>Thank You!</h1>
+                </div>
+                <div class="completion-screen">
+                    <h2>Your interview is complete</h2>
+                    <p class="text-muted mb-2">Thank you for sharing your thoughts and feedback. Your responses have been recorded and will help improve the product.</p>
+                    <div style="background:var(--neutral-50);padding:20px;border-radius:var(--radius-lg);margin-top:20px">
+                        <p style="font-size:0.9rem;color:var(--neutral-500)">
+                            <i class="fas fa-shield-alt" style="color:var(--primary-500)"></i>
+                            Your responses are securely stored and will be used solely for research purposes.
+                        </p>
+                    </div>
+                </div>
+            </div>`;
+    },
+
+    // ── Utility ──
+    esc(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+};
+
+// Boot
+document.addEventListener('DOMContentLoaded', () => InterviewApp.init());
+</script>
+
+</body>
+</html>

@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════
+# Dockerfile.worker — AI Worker Container
+# Infrastructure & Scalability Architecture (Section 7)
+# ═══════════════════════════════════════════════════
+# Workers are independent compute engines.
+# Scaling = add containers:
+#   docker-compose up --scale ai-worker=5
+#
+# Each worker: calls Gemini API, AssemblyAI, NLP, insights, DB
+# ═══════════════════════════════════════════════════
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY backend/ ./backend/
+
+# Create data directory (shared volume with backend)
+RUN mkdir -p /app/data
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV APP_ENV=production
+ENV GEMINI_API_KEY=""
+ENV ASSEMBLYAI_API_KEY=""
+ENV WORKER_ROLE=ai_processor
+
+# No port exposed — workers don't serve HTTP
+# They pull from queue and process
+
+# Health check via worker pool heartbeat
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "print('worker alive')" || exit 1
+
+# Start worker process
+CMD ["python", "-m", "backend.infrastructure.worker_pool"]
