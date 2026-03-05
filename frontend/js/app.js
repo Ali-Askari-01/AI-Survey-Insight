@@ -12,9 +12,6 @@ const App = {
         dashboard: { title: 'Dashboard', icon: 'fa-th-large', component: null },
         'survey-designer': { title: 'Survey Designer', icon: 'fa-magic', component: () => SurveyDesigner },
         'my-surveys': { title: 'My Surveys', icon: 'fa-folder-open', component: () => MySurveys },
-        'web-form': { title: 'Web Form', icon: 'fa-clipboard-list', component: () => WebForm },
-        'chat': { title: 'Chat Interview', icon: 'fa-comments', component: () => ChatInterface },
-        'voice': { title: 'Voice Input', icon: 'fa-microphone', component: () => VoiceInput },
         'insights': { title: 'Insights', icon: 'fa-chart-bar', component: () => InsightDashboard },
         'reports': { title: 'Reports', icon: 'fa-file-alt', component: () => ReportPanel }
     },
@@ -23,6 +20,40 @@ const App = {
     init() {
         this.bindAuthForms();
         API._initSessionTimer();
+
+        // Check for Google OAuth callback token in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const googleToken = urlParams.get('google_token');
+        const authError = urlParams.get('auth_error');
+
+        // Clean up URL params
+        if (googleToken || authError) {
+            window.history.replaceState({}, '', '/app');
+        }
+
+        if (authError) {
+            this.showLogin();
+            const errEl = document.getElementById('login-error');
+            if (errEl) {
+                const errorMessages = {
+                    'token_exchange_failed': 'Google sign-in failed. Please try again.',
+                    'no_id_token': 'Google did not return authentication info.',
+                    'invalid_token': 'Invalid Google authentication response.',
+                    'no_email': 'Could not get email from Google account.',
+                    'account_deactivated': 'This account has been deactivated.',
+                    'no_code': 'Google sign-in was cancelled.',
+                };
+                errEl.textContent = errorMessages[authError] || `Google sign-in error: ${authError}`;
+                errEl.hidden = false;
+            }
+            return;
+        }
+
+        if (googleToken) {
+            API.setToken(googleToken);
+            this.validateToken();
+            return;
+        }
 
         // Check if user is already logged in
         const token = API.getToken();
@@ -34,6 +65,11 @@ const App = {
     },
 
     /* ── Authentication ────────────────────────── */
+    googleLogin() {
+        // Redirect to backend Google OAuth endpoint
+        window.location.href = '/api/auth/google/login';
+    },
+
     showLogin() {
         document.getElementById('login-overlay')?.classList.remove('hidden');
     },
@@ -43,6 +79,12 @@ const App = {
     },
 
     bindAuthForms() {
+        // Google Sign-In button (outside forms — always visible)
+        document.getElementById('google-login-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.googleLogin();
+        });
         // Toggle between login/register
         document.getElementById('show-register')?.addEventListener('click', (e) => {
             e.preventDefault();
@@ -172,7 +214,7 @@ const App = {
         const footer = document.querySelector('.sidebar-footer');
         if (footer && this.currentUser) {
             const initials = this.currentUser.name ? this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
-            const roleName = { founder: 'Founder', pm: 'Product Manager', designer: 'Designer', engineer: 'Engineer', respondent: 'Respondent' };
+            const roleName = { founder: 'Founder', pm: 'Product Manager', designer: 'Designer', engineer: 'Engineer', respondent: 'Respondent', executive: 'Executive', other: this.customRoleLabel || 'Other' };
             const userInfoHTML = `
                 <div class="user-info">
                     <div class="user-avatar">${initials}</div>
@@ -285,6 +327,10 @@ const App = {
 
     /* ── Dashboard (landing page) ──────────────────────── */
     async renderDashboard() {
+        if (this.viewMode === 'story') {
+            this.renderDashboardStory();
+            return;
+        }
         const page = document.getElementById('page-dashboard');
         if (!page) return;
 
@@ -325,32 +371,6 @@ const App = {
                     <div class="card dashboard-card">
                         <div class="card-header"><h3><i class="fas fa-chart-pie"></i> Sentiment Distribution</h3></div>
                         <div class="card-body chart-container"><canvas id="dash-chart-donut"></canvas></div>
-                    </div>
-                </div>
-
-                <!-- Channel Cards -->
-                <h3 class="mb-2"><i class="fas fa-signal"></i> Collection Channels</h3>
-                <div class="grid grid-3 gap-2 mb-3">
-                    <div class="card channel-card" style="cursor:pointer" onclick="window.location.hash='web-form'">
-                        <div class="card-body" style="text-align:center;padding:var(--space-4)">
-                            <i class="fas fa-clipboard-list" style="font-size:2rem;color:var(--primary-500)"></i>
-                            <h4 class="mt-2">Web Form</h4>
-                            <p class="text-muted">Progressive, conversational surveys</p>
-                        </div>
-                    </div>
-                    <div class="card channel-card" style="cursor:pointer" onclick="window.location.hash='chat'">
-                        <div class="card-body" style="text-align:center;padding:var(--space-4)">
-                            <i class="fas fa-comments" style="font-size:2rem;color:var(--success)"></i>
-                            <h4 class="mt-2">Chat Interview</h4>
-                            <p class="text-muted">WhatsApp-style AI conversations</p>
-                        </div>
-                    </div>
-                    <div class="card channel-card" style="cursor:pointer" onclick="window.location.hash='voice'">
-                        <div class="card-body" style="text-align:center;padding:var(--space-4)">
-                            <i class="fas fa-microphone" style="font-size:2rem;color:var(--warning)"></i>
-                            <h4 class="mt-2">Voice Input</h4>
-                            <p class="text-muted">Speak naturally, AI transcribes</p>
-                        </div>
                     </div>
                 </div>
 
@@ -408,13 +428,8 @@ const App = {
                 if (trends && Object.keys(trends).length > 0) {
                     Charts.sentimentTrend('dash-chart-trend', trends);
                 } else {
-                    // Fallback to static placeholder
-                    const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-                    Charts.sentimentTrend('dash-chart-trend', labels, {
-                        positive: [60, 62, 65, 68],
-                        neutral: [25, 24, 23, 22],
-                        negative: [15, 14, 12, 10]
-                    });
+                    const trendCanvas = document.getElementById('dash-chart-trend');
+                    if (trendCanvas) trendCanvas.parentElement.innerHTML = '<div class="empty-state"><p>No sentiment trend data yet.</p></div>';
                 }
             } catch { /* trend chart is optional */ }
 
@@ -445,15 +460,255 @@ const App = {
         }
     },
 
+    /* ── Dashboard Story Mode ──────────────────────────── */
+    async renderDashboardStory() {
+        const page = document.getElementById('page-dashboard');
+        if (!page) return;
+
+        page.innerHTML = `
+            <div class="story-view">
+                <div class="story-loading">
+                    <div class="story-loading-icon"><i class="fas fa-book-reader fa-3x fa-pulse"></i></div>
+                    <p class="story-loading-text">Building your research story...</p>
+                    <div class="story-loading-bar"><div class="story-loading-progress"></div></div>
+                </div>
+            </div>
+        `;
+
+        try {
+            const [surveys, notifications] = await Promise.all([
+                API.surveys.list().catch(() => []),
+                API.notifications.list().catch(() => [])
+            ]);
+
+            if (surveys.length === 0) {
+                page.innerHTML = `
+                    <div class="story-view">
+                        <div class="story-section">
+                            <div class="story-empty">
+                                <i class="fas fa-book-open" style="font-size:3rem;color:var(--neutral-300);margin-bottom:var(--space-3)"></i>
+                                <h3>Your Research Story Begins Here</h3>
+                                <p class="text-muted">Create your first survey and collect responses to generate a compelling research narrative.</p>
+                                <button class="btn btn-primary mt-3" onclick="window.location.hash='survey-designer'">
+                                    <i class="fas fa-magic"></i> Create First Survey
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Pick the most recent survey for the story
+            const sorted = [...surveys].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            this.activeSurveyId = sorted[0].id;
+
+            // Fetch story for the active survey
+            let story;
+            try {
+                story = await API.insights.getStory(this.activeSurveyId);
+            } catch {
+                // Build local fallback
+                const summary = await API.insights.getSummary(this.activeSurveyId).catch(() => ({}));
+                story = {
+                    headline: `Research Overview: ${surveys.length} Active Surveys`,
+                    executive_summary: `You have ${surveys.length} survey${surveys.length > 1 ? 's' : ''} collecting feedback. ${summary.total_responses || 0} responses have been gathered so far with ${summary.total_insights || 0} insights discovered.`,
+                    sentiment_narrative: 'Switch to the Insights page and select a survey to see detailed sentiment analysis.',
+                    theme_narrative: `${summary.total_themes || 0} themes have been identified across your research.`,
+                    key_findings: (summary.top_insights || []).slice(0, 3).map(i => ({
+                        title: i.title || 'Insight',
+                        description: i.description || ''
+                    })),
+                    highlight_quote: surveys.length > 0 ? `Your most recent survey "${sorted[0].title || 'Untitled'}" is actively collecting feedback.` : '',
+                    recommendations_narrative: 'Continue collecting responses to strengthen your insights. The more data you gather, the more accurate the analysis becomes.',
+                    outlook: 'Your research infrastructure is set up and ready. Each new response will deepen the understanding of your users.',
+                    stats: {
+                        total_responses: summary.total_responses || 0,
+                        total_themes: summary.total_themes || 0,
+                        total_insights: summary.total_insights || 0,
+                        total_recommendations: summary.feature_areas?.length || 0,
+                        sentiment_distribution: {}
+                    },
+                    themes: [],
+                    survey_title: sorted[0].title || 'Survey'
+                };
+                (summary.sentiment_distribution || []).forEach(s => {
+                    story.stats.sentiment_distribution[s.sentiment] = s.count;
+                });
+            }
+
+            // Add survey overview to the story
+            const surveyListHTML = surveys.length > 0 ? `
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-folder-open"></i> Your Surveys</h2>
+                    <div class="story-survey-list">
+                        ${sorted.slice(0, 5).map(s => `
+                            <div class="story-survey-item" onclick="window.location.hash='insights'; App.activeSurveyId=${s.id};">
+                                <div class="story-survey-title">${Helpers.escapeHtml(s.title || 'Untitled Survey')}</div>
+                                <div class="story-survey-meta">${Helpers.timeAgo(s.created_at)} · ${s.status || 'active'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            // Render using same story template as InsightDashboard
+            const stats = story.stats || {};
+            const sentDist = stats.sentiment_distribution || {};
+            const themes = story.themes || [];
+            const findings = story.key_findings || [];
+            const pos = sentDist.positive || 0;
+            const neu = sentDist.neutral || 0;
+            const neg = sentDist.negative || 0;
+            const total = pos + neu + neg || 1;
+
+            page.innerHTML = `
+                <div class="story-view stagger-children">
+                    <div class="story-section story-header-section">
+                        <div class="story-eyebrow"><i class="fas fa-book-open"></i> Research Story</div>
+                        <h1 class="story-title">${Helpers.escapeHtml(story.headline || 'Your Research Overview')}</h1>
+                        <p class="story-text story-lead">${Helpers.escapeHtml(story.executive_summary || '')}</p>
+                    </div>
+
+                    <div class="story-section">
+                        <h2 class="story-subtitle"><i class="fas fa-chart-bar"></i> At a Glance</h2>
+                        <div class="story-stat-row">
+                            <div class="story-stat">
+                                <div class="story-stat-value">${surveys.length}</div>
+                                <div class="story-stat-label">Surveys</div>
+                            </div>
+                            <div class="story-stat">
+                                <div class="story-stat-value">${Helpers.formatNumber(stats.total_responses || 0)}</div>
+                                <div class="story-stat-label">Responses</div>
+                            </div>
+                            <div class="story-stat">
+                                <div class="story-stat-value">${stats.total_insights || 0}</div>
+                                <div class="story-stat-label">Insights</div>
+                            </div>
+                            <div class="story-stat">
+                                <div class="story-stat-value">${stats.total_themes || 0}</div>
+                                <div class="story-stat-label">Themes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${(pos + neu + neg) > 0 ? `
+                    <div class="story-section">
+                        <h2 class="story-subtitle"><i class="fas fa-heart"></i> Sentiment</h2>
+                        <p class="story-text">${Helpers.escapeHtml(story.sentiment_narrative || '')}</p>
+                        <div class="story-sentiment-bar">
+                            <div class="story-sent-segment story-sent-positive" style="width:${Math.round(pos/total*100)}%"><span>${Math.round(pos/total*100)}%</span></div>
+                            <div class="story-sent-segment story-sent-neutral" style="width:${Math.round(neu/total*100)}%"><span>${Math.round(neu/total*100)}%</span></div>
+                            <div class="story-sent-segment story-sent-negative" style="width:${Math.round(neg/total*100)}%"><span>${Math.round(neg/total*100)}%</span></div>
+                        </div>
+                        <div class="story-sentiment-legend">
+                            <span><span class="story-legend-dot" style="background:var(--success)"></span> Positive</span>
+                            <span><span class="story-legend-dot" style="background:var(--warning)"></span> Neutral</span>
+                            <span><span class="story-legend-dot" style="background:var(--danger)"></span> Negative</span>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${story.highlight_quote ? `
+                    <div class="story-section">
+                        <div class="story-highlight">
+                            <i class="fas fa-quote-left" style="color:var(--warning);margin-right:var(--space-2)"></i>
+                            ${Helpers.escapeHtml(story.highlight_quote)}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${findings.length > 0 ? `
+                    <div class="story-section">
+                        <h2 class="story-subtitle"><i class="fas fa-lightbulb"></i> Key Findings</h2>
+                        <div class="story-findings">
+                            ${findings.map((f, i) => `
+                                <div class="story-finding">
+                                    <div class="story-finding-number">${i + 1}</div>
+                                    <div class="story-finding-body">
+                                        <div class="story-finding-title">${Helpers.escapeHtml(f.title || '')}</div>
+                                        <div class="story-finding-desc">${Helpers.escapeHtml(f.description || '')}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${surveyListHTML}
+
+                    ${story.outlook ? `
+                    <div class="story-section story-outlook">
+                        <div class="story-outlook-card">
+                            <i class="fas fa-binoculars"></i>
+                            <p>${Helpers.escapeHtml(story.outlook)}</p>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        } catch (e) {
+            console.error('Dashboard story error:', e);
+            page.innerHTML = `
+                <div class="story-view">
+                    <div class="story-section">
+                        <div class="story-empty">
+                            <i class="fas fa-exclamation-circle" style="font-size:2rem;color:var(--warning);margin-bottom:var(--space-3)"></i>
+                            <h3>Could Not Load Story</h3>
+                            <p class="text-muted">An error occurred loading the narrative view. Try switching back to Explore.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    },
+
     /* ── Role Selector ─────────────────────────────────── */
     bindRoleSelector() {
         const roleSelect = document.getElementById('role-select');
+        const customInput = document.getElementById('role-custom-input');
         if (roleSelect) {
             roleSelect.addEventListener('change', () => {
-                this.currentRole = roleSelect.value;
-                document.body.setAttribute('data-role', this.currentRole);
-                const label = roleSelect.options[roleSelect.selectedIndex].text;
-                Helpers.toast('Role Changed', `Viewing as ${label}`, 'info', 2000);
+                if (roleSelect.value === 'other') {
+                    // Show custom input
+                    customInput.hidden = false;
+                    customInput.focus();
+                } else {
+                    customInput.hidden = true;
+                    this.currentRole = roleSelect.value;
+                    document.body.setAttribute('data-role', this.currentRole);
+                    const label = roleSelect.options[roleSelect.selectedIndex].text;
+                    Helpers.toast('Role Changed', `Viewing as ${label}`, 'info', 2000);
+                }
+            });
+        }
+        if (customInput) {
+            const applyCustomRole = () => {
+                const val = customInput.value.trim();
+                if (val) {
+                    this.currentRole = 'other';
+                    this.customRoleLabel = val;
+                    document.body.setAttribute('data-role', 'other');
+                    // Update the "Other..." option text to show the custom role
+                    const otherOpt = roleSelect.querySelector('option[value="other"]');
+                    if (otherOpt) otherOpt.textContent = val;
+                    Helpers.toast('Role Changed', `Viewing as ${val}`, 'info', 2000);
+                    customInput.hidden = true;
+                }
+            };
+            customInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); applyCustomRole(); }
+                if (e.key === 'Escape') {
+                    customInput.hidden = true;
+                    roleSelect.value = this.currentRole !== 'other' ? this.currentRole : 'pm';
+                }
+            });
+            customInput.addEventListener('blur', () => {
+                if (customInput.value.trim()) applyCustomRole();
+                else {
+                    customInput.hidden = true;
+                    roleSelect.value = this.currentRole !== 'other' ? this.currentRole : 'pm';
+                }
             });
         }
     },
@@ -462,6 +717,7 @@ const App = {
     bindViewToggle() {
         document.querySelectorAll('.view-toggle .view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.dataset.view === this.viewMode) return;
                 document.querySelectorAll('.view-toggle .view-btn').forEach(b => {
                     b.classList.remove('active');
                     b.setAttribute('aria-pressed', 'false');
@@ -470,6 +726,13 @@ const App = {
                 btn.setAttribute('aria-pressed', 'true');
                 this.viewMode = btn.dataset.view;
                 document.body.setAttribute('data-view', this.viewMode);
+
+                // Re-render active component or dashboard in the new view mode
+                if (this.activeComponent && typeof this.activeComponent.onViewModeChange === 'function') {
+                    this.activeComponent.onViewModeChange(this.viewMode);
+                } else if (this.currentPage === 'dashboard') {
+                    this.renderDashboard();
+                }
             });
         });
     },

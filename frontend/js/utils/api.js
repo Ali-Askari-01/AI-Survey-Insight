@@ -212,6 +212,7 @@ const API = {
         getHeatmap(surveyId) { return API.get(`/api/insights/sentiment/${surveyId}/heatmap`); },
         getTrends(surveyId) { return API.get(`/api/insights/sentiment/${surveyId}/trends`); },
         getPatterns(surveyId) { return API.get(`/api/insights/patterns/${surveyId}`); },
+        getStory(surveyId) { return API.get(`/api/insights/${surveyId}/story`); },
     },
 
     // ── Feature 4: Reports ──

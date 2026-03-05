@@ -1,17 +1,20 @@
 """
 Authentication API Routes
-Handles user registration, login, profile, and role management.
+Handles user registration, login, profile, Google OAuth, and role management.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import RedirectResponse
 from ..database import get_db
 from ..models import UserRegister, UserLogin
 from ..auth import hash_password, verify_password, create_token, get_current_user, require_role, validate_password_strength
-from ..config import MAX_FAILED_LOGIN_ATTEMPTS, FAILED_LOGIN_LOCKOUT_MINUTES
+from ..config import MAX_FAILED_LOGIN_ATTEMPTS, FAILED_LOGIN_LOCKOUT_MINUTES, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from datetime import datetime
 import re
 import time
 import threading
 import logging
+import urllib.parse
+import json
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security_logger = logging.getLogger("security")
@@ -209,3 +212,140 @@ def deactivate_user(user_id: int, current_user: dict = Depends(require_role("fou
     conn.commit()
     conn.close()
     return {"message": "User deactivated"}
+
+
+# ═══════════════════════════════════════════════════
+# GOOGLE OAUTH 2.0 — Sign in with Google
+# ═══════════════════════════════════════════════════
+
+@router.get("/google/login")
+def google_login(request: Request):
+    """Redirect user to Google's OAuth2 consent screen."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google Sign-In is not configured")
+
+    # Build redirect URI dynamically from current request host
+    scheme = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("host", "localhost:8000")
+    redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+
+    params = urllib.parse.urlencode({
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+        "state": redirect_uri,  # pass redirect_uri in state for callback
+    })
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+
+@router.get("/google/callback")
+def google_callback(request: Request, code: str = None, error: str = None, state: str = None):
+    """Handle the OAuth2 callback from Google."""
+    if error:
+        return RedirectResponse(f"/app?auth_error={urllib.parse.quote(error)}")
+
+    if not code:
+        return RedirectResponse("/app?auth_error=no_code")
+
+    # Use the redirect_uri from state parameter, or build from request
+    if state:
+        redirect_uri = state
+    else:
+        scheme = request.headers.get("x-forwarded-proto", "http")
+        host = request.headers.get("host", "localhost:8000")
+        redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+
+    # Exchange authorization code for tokens
+    import urllib.request
+    token_data = urllib.parse.urlencode({
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            token_response = json.loads(resp.read())
+    except Exception as e:
+        security_logger.error(f"GOOGLE_TOKEN_EXCHANGE_FAILED: {e}")
+        return RedirectResponse("/app?auth_error=token_exchange_failed")
+
+    id_token = token_response.get("id_token")
+    if not id_token:
+        return RedirectResponse("/app?auth_error=no_id_token")
+
+    # Decode the ID token to get user info (Google ID tokens are JWTs)
+    try:
+        # Decode payload (middle segment) — signature verified by Google's token endpoint
+        import base64
+        payload_b64 = id_token.split('.')[1]
+        # Add padding
+        padding = 4 - len(payload_b64) % 4
+        if padding != 4:
+            payload_b64 += '=' * padding
+        user_info = json.loads(base64.urlsafe_b64decode(payload_b64))
+    except Exception as e:
+        security_logger.error(f"GOOGLE_ID_TOKEN_DECODE_FAILED: {e}")
+        return RedirectResponse("/app?auth_error=invalid_token")
+
+    email = user_info.get("email", "")
+    name = user_info.get("name", email.split("@")[0])
+    avatar_url = user_info.get("picture", "")
+
+    if not email:
+        return RedirectResponse("/app?auth_error=no_email")
+
+    # Find or create user
+    conn = get_db()
+    existing = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+    if existing:
+        user_dict = dict(existing)
+        if not user_dict["is_active"]:
+            conn.close()
+            return RedirectResponse("/app?auth_error=account_deactivated")
+
+        # Update last login and avatar
+        conn.execute(
+            "UPDATE users SET last_login = ?, avatar_url = ?, updated_at = ? WHERE id = ?",
+            (datetime.now().isoformat(), avatar_url, datetime.now().isoformat(), user_dict["id"])
+        )
+        conn.commit()
+        user_id = user_dict["id"]
+        role = user_dict["role"]
+    else:
+        # Auto-register new Google user
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO users (name, email, password_hash, role, avatar_url, last_login)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (name, email, "google_oauth", "pm", avatar_url, datetime.now().isoformat()))
+        conn.commit()
+        user_id = cursor.lastrowid
+        role = "pm"
+        security_logger.info(f"GOOGLE_REGISTER user_id={user_id} email={email}")
+
+    conn.close()
+
+    # Create JWT
+    jwt_token = create_token(user_id, email, role)
+    security_logger.info(f"GOOGLE_LOGIN user_id={user_id} email={email}")
+
+    # Redirect to frontend with token
+    return RedirectResponse(f"/app?google_token={jwt_token}")
+
+
+@router.get("/google/client-id")
+def google_client_id():
+    """Return the Google Client ID for the frontend to display the button."""
+    return {"client_id": GOOGLE_CLIENT_ID if GOOGLE_CLIENT_ID else None}

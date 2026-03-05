@@ -8,14 +8,28 @@ const InsightDashboard = {
     filters: { sentiment: 'all', theme: 'all', dateRange: '30d', channel: 'all' },
     surveyId: null,
     surveys: [],
+    _cachedData: null,
+    _storyCache: null,
 
     async init() {
+        this.viewMode = App.viewMode || 'explore';
         // Load available surveys for the selector
         try { this.surveys = await API.surveys.list(); } catch { this.surveys = []; }
         this.surveyId = App.activeSurveyId || (this.surveys[0]?.id) || 1;
         this.render();
         this.bindEvents();
         await this.loadData();
+    },
+
+    onViewModeChange(mode) {
+        this.viewMode = mode;
+        if (mode === 'story') {
+            this.renderStoryView();
+        } else {
+            this.render();
+            this.bindEvents();
+            this.loadData();
+        }
     },
 
     render() {
@@ -175,6 +189,9 @@ const InsightDashboard = {
             this.renderFeatureImpact(summary);
             this.renderInsightList(insights);
             this.populateThemeFilter(themes);
+
+            // Cache data for local story fallback
+            this._cachedData = { summary, themes, insights, trends, heatmap, patterns };
 
         } catch (e) {
             console.error('Failed to load insights:', e);
@@ -450,5 +467,236 @@ const InsightDashboard = {
         Charts.destroy('chart-sentiment-donut');
         Charts.destroy('chart-themes-bar');
         Charts.destroy('chart-engagement');
+    },
+
+    /* ── Story Mode ─────────────────────────────────────── */
+    async renderStoryView() {
+        const page = document.getElementById('page-insights');
+        if (!page) return;
+
+        // Show loading state
+        page.innerHTML = `
+            <div class="story-view">
+                <div class="story-loading">
+                    <div class="story-loading-icon"><i class="fas fa-book-reader fa-3x fa-pulse"></i></div>
+                    <p class="story-loading-text">Crafting your insight narrative...</p>
+                    <div class="story-loading-bar"><div class="story-loading-progress"></div></div>
+                </div>
+            </div>
+        `;
+
+        try {
+            // Fetch story from backend (uses AI generation)
+            const story = await API.insights.getStory(this.surveyId);
+            this._storyCache = story;
+            this._renderStoryContent(page, story);
+        } catch (err) {
+            console.error('Story generation failed:', err);
+            // Fallback: build a local story from cached data
+            if (this._cachedData) {
+                this._renderLocalStory(page, this._cachedData);
+            } else {
+                page.innerHTML = `
+                    <div class="story-view">
+                        <div class="story-section">
+                            <div class="story-empty">
+                                <i class="fas fa-book-open" style="font-size:3rem;color:var(--neutral-300);margin-bottom:var(--space-3)"></i>
+                                <h3>No Story Available Yet</h3>
+                                <p class="text-muted">Create surveys and collect responses to generate an insight narrative.</p>
+                                <button class="btn btn-primary mt-3" onclick="App.viewMode='explore'; document.querySelectorAll('.view-toggle .view-btn').forEach(b => {b.classList.toggle('active', b.dataset.view==='explore'); b.setAttribute('aria-pressed', b.dataset.view==='explore'?'true':'false');}); document.body.setAttribute('data-view','explore'); InsightDashboard.onViewModeChange('explore');">
+                                    <i class="fas fa-compass"></i> Switch to Explore
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    },
+
+    _renderStoryContent(page, story) {
+        const stats = story.stats || {};
+        const sentDist = stats.sentiment_distribution || {};
+        const themes = story.themes || [];
+        const findings = story.key_findings || [];
+        const pos = sentDist.positive || 0;
+        const neu = sentDist.neutral || 0;
+        const neg = sentDist.negative || 0;
+        const total = pos + neu + neg || 1;
+
+        page.innerHTML = `
+            <div class="story-view stagger-children">
+                <!-- Header Section -->
+                <div class="story-section story-header-section">
+                    <div class="story-eyebrow"><i class="fas fa-book-open"></i> Insight Narrative — ${Helpers.escapeHtml(story.survey_title || 'Survey')}</div>
+                    <h1 class="story-title">${Helpers.escapeHtml(story.headline || 'Survey Insights')}</h1>
+                    <p class="story-text story-lead">${Helpers.escapeHtml(story.executive_summary || '')}</p>
+                </div>
+
+                <!-- Key Stats -->
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-chart-bar"></i> At a Glance</h2>
+                    <div class="story-stat-row">
+                        <div class="story-stat">
+                            <div class="story-stat-value">${Helpers.formatNumber(stats.total_responses || 0)}</div>
+                            <div class="story-stat-label">Responses</div>
+                        </div>
+                        <div class="story-stat">
+                            <div class="story-stat-value">${stats.total_themes || 0}</div>
+                            <div class="story-stat-label">Themes</div>
+                        </div>
+                        <div class="story-stat">
+                            <div class="story-stat-value">${stats.total_insights || 0}</div>
+                            <div class="story-stat-label">Insights</div>
+                        </div>
+                        <div class="story-stat">
+                            <div class="story-stat-value">${stats.total_recommendations || 0}</div>
+                            <div class="story-stat-label">Recommendations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sentiment Narrative -->
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-heart"></i> Sentiment Landscape</h2>
+                    <p class="story-text">${Helpers.escapeHtml(story.sentiment_narrative || 'No sentiment data available.')}</p>
+                    <div class="story-sentiment-bar">
+                        <div class="story-sent-segment story-sent-positive" style="width:${Math.round(pos/total*100)}%">
+                            <span>${Math.round(pos/total*100)}%</span>
+                        </div>
+                        <div class="story-sent-segment story-sent-neutral" style="width:${Math.round(neu/total*100)}%">
+                            <span>${Math.round(neu/total*100)}%</span>
+                        </div>
+                        <div class="story-sent-segment story-sent-negative" style="width:${Math.round(neg/total*100)}%">
+                            <span>${Math.round(neg/total*100)}%</span>
+                        </div>
+                    </div>
+                    <div class="story-sentiment-legend">
+                        <span><span class="story-legend-dot" style="background:var(--success)"></span> Positive</span>
+                        <span><span class="story-legend-dot" style="background:var(--warning)"></span> Neutral</span>
+                        <span><span class="story-legend-dot" style="background:var(--danger)"></span> Negative</span>
+                    </div>
+                </div>
+
+                <!-- Theme Narrative -->
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-tags"></i> Theme Discovery</h2>
+                    <p class="story-text">${Helpers.escapeHtml(story.theme_narrative || 'No themes discovered yet.')}</p>
+                    ${themes.length > 0 ? `
+                        <div class="story-theme-pills">
+                            ${themes.map(t => {
+                                const sentColor = t.sentiment_avg > 0.6 ? 'var(--success)' : t.sentiment_avg < 0.4 ? 'var(--danger)' : 'var(--warning)';
+                                return `<div class="story-theme-pill" style="border-left: 3px solid ${sentColor}">
+                                    <span class="story-theme-name">${Helpers.escapeHtml(t.name)}</span>
+                                    <span class="story-theme-count">${t.frequency || 0} mentions</span>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Key Highlight -->
+                ${story.highlight_quote ? `
+                <div class="story-section">
+                    <div class="story-highlight">
+                        <i class="fas fa-quote-left" style="color:var(--warning);margin-right:var(--space-2)"></i>
+                        ${Helpers.escapeHtml(story.highlight_quote)}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Key Findings -->
+                ${findings.length > 0 ? `
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-lightbulb"></i> Key Findings</h2>
+                    <div class="story-findings">
+                        ${findings.map((f, i) => `
+                            <div class="story-finding">
+                                <div class="story-finding-number">${i + 1}</div>
+                                <div class="story-finding-body">
+                                    <div class="story-finding-title">${Helpers.escapeHtml(f.title || '')}</div>
+                                    <div class="story-finding-desc">${Helpers.escapeHtml(f.description || '')}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Recommendations -->
+                ${story.recommendations_narrative ? `
+                <div class="story-section">
+                    <h2 class="story-subtitle"><i class="fas fa-road"></i> What's Next</h2>
+                    <p class="story-text">${Helpers.escapeHtml(story.recommendations_narrative)}</p>
+                </div>
+                ` : ''}
+
+                <!-- Outlook -->
+                ${story.outlook ? `
+                <div class="story-section story-outlook">
+                    <div class="story-outlook-card">
+                        <i class="fas fa-binoculars"></i>
+                        <p>${Helpers.escapeHtml(story.outlook)}</p>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    _renderLocalStory(page, data) {
+        const { summary, themes, insights } = data;
+        const stats = {
+            total_responses: summary?.total_responses || 0,
+            total_themes: summary?.total_themes || themes?.length || 0,
+            total_insights: summary?.total_insights || insights?.length || 0,
+            total_recommendations: summary?.feature_areas?.length || 0,
+            sentiment_distribution: {}
+        };
+        (summary?.sentiment_distribution || []).forEach(s => {
+            stats.sentiment_distribution[s.sentiment] = s.count;
+        });
+
+        const localStory = {
+            headline: `${stats.total_insights} Insights from ${stats.total_responses} Responses`,
+            executive_summary: `Analysis across ${stats.total_themes} themes revealed ${stats.total_insights} actionable insights from ${stats.total_responses} total responses.`,
+            sentiment_narrative: this._buildSentimentNarrative(stats.sentiment_distribution),
+            theme_narrative: this._buildThemeNarrative(themes || []),
+            key_findings: (insights || []).slice(0, 4).map(i => ({
+                title: i.title || i.description?.substring(0, 60) || 'Insight',
+                description: i.description || ''
+            })),
+            highlight_quote: (insights && insights[0]) ? (insights[0].description || insights[0].title || '') : '',
+            recommendations_narrative: 'Review the key findings above and prioritize actions based on impact scores and sentiment trends.',
+            outlook: 'Continue collecting responses to strengthen confidence levels and uncover emerging themes.',
+            stats,
+            themes: (themes || []).slice(0, 8).map(t => ({
+                name: t.name,
+                frequency: t.frequency || t.mention_count || 0,
+                sentiment_avg: t.sentiment_avg || t.avg_sentiment || 0.5
+            })),
+            survey_title: 'Survey #' + this.surveyId
+        };
+        this._renderStoryContent(page, localStory);
+    },
+
+    _buildSentimentNarrative(dist) {
+        const pos = dist.positive || 0;
+        const neu = dist.neutral || 0;
+        const neg = dist.negative || 0;
+        const total = pos + neu + neg || 1;
+        const pPct = Math.round(pos / total * 100);
+        const nPct = Math.round(neg / total * 100);
+        if (total <= 1) return 'Not enough data to determine sentiment patterns.';
+        if (pPct > 60) return `Sentiment is strongly positive at ${pPct}%, indicating high user satisfaction across most topics.`;
+        if (nPct > 40) return `A notable ${nPct}% of feedback carries negative sentiment, highlighting areas that need attention.`;
+        return `Sentiment is mixed: ${pPct}% positive, ${Math.round(neu/total*100)}% neutral, and ${nPct}% negative.`;
+    },
+
+    _buildThemeNarrative(themes) {
+        if (themes.length === 0) return 'No themes have been identified yet.';
+        const top3 = themes.slice(0, 3).map(t => t.name);
+        return `${themes.length} themes were discovered. The most prominent are ${top3.join(', ')}. ` +
+            `The leading theme "${top3[0]}" appeared ${themes[0]?.frequency || themes[0]?.mention_count || 0} times across responses.`;
     }
 };

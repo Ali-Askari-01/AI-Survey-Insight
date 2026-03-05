@@ -26,6 +26,14 @@ JWT_SECRET = os.environ.get("JWT_SECRET", secrets.token_hex(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
+# ── Google OAuth 2.0 ──
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
+
+if not GOOGLE_CLIENT_ID:
+    print("⚠️  WARNING: GOOGLE_CLIENT_ID not set. Google Sign-In will not work.")
+
 # ═══════════════════════════════════════════════════
 # ARCHITECTURE: Rate Limiting Configuration
 # ═══════════════════════════════════════════════════

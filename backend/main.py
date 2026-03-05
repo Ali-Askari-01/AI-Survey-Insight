@@ -15,7 +15,7 @@ import time
 import asyncio
 from typing import List
 
-from .database import init_db, seed_demo_data
+from .database import init_db
 from .auth import get_current_user
 from .routes import survey, interview, insights, reports, notifications, auth
 from .routes import ai_processing
@@ -142,7 +142,6 @@ async def startup():
 
     # Initialize database (creates new tables: ai_metadata, event_log, hitl_corrections, pipeline_executions)
     init_db()
-    seed_demo_data()
 
     # Register event-driven handlers (with Intelligence Loop integration)
     register_default_handlers()

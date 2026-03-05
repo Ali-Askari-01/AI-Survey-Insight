@@ -124,6 +124,26 @@
     color: white;
 }
 
+.role-custom-input {
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: rgba(255,255,255,0.12);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: var(--text-sm);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.role-custom-input::placeholder {
+    color: var(--gray-500);
+}
+.role-custom-input:focus {
+    border-color: var(--primary-light, var(--primary));
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
 .sidebar-info {
     text-align: center;
     color: var(--gray-500);

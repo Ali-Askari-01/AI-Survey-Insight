@@ -1,0 +1,41 @@
+﻿=== SURVEYS ===
+  ID=1 Title=App Churn Discovery Interview Status=active
+  ID=2 Title=I want to understand why customers stop  Status=draft
+  ID=3 Title=Luxury Fashion E-commerce Cart Abandonme Status=draft
+  ID=4 Title=Safety Net Test Survey Status=draft
+  ID=5 Title=We are doing are design your habib exper Status=draft
+  ID=6 Title=We are doing are design your habib exper Status=active
+  ID=7 Title=Lack of Sports Facilities Status=draft
+  ID=8 Title=Lack of Sports Facilities Status=active
+
+=== SESSIONS ===
+Total: 29
+  sid=sim-da2b2ed2-4b5a-4c survey=1 status=completed comp=0.0% hist=0
+  sid=sim-cf581e13-2c98-44 survey=1 status=completed comp=0.0% hist=0
+  sid=4c2b3739-5142-4142-a survey=2 status=active comp=0.0% hist=7
+  sid=57d54ccb-dabc-4e8c-9 survey=3 status=active comp=0.0% hist=5
+  sid=7c92edb8-9850-4cee-8 survey=4 status=completed comp=0.0% hist=3
+  sid=68a83635-6f53-4f0c-9 survey=4 status=active comp=0.0% hist=1
+  sid=52d231da-1459-45b1-b survey=4 status=active comp=0.0% hist=1
+  sid=74792d4a-237a-4afb-b survey=4 status=active comp=0.0% hist=1
+  sid=dad7b7ec-5989-4767-9 survey=4 status=active comp=0.0% hist=1
+  sid=ef2dd87b-7d2e-46f6-8 survey=4 status=active comp=0.0% hist=1
+
+=== RESPONSES ===
+Total: 20
+.venv\Scripts\python.exe : Traceback (most recent call last):
+At line:1 char:1
++ .venv\Scripts\python.exe db_check.py 2>&1 | Out-File db_check_output. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last) 
+   ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\SIKANDAR\Desktop\AI Survey Software\db_check.py", line 19, in 
+<module>
+    for r in [dict(r) for r in conn.execute('SELECT 
+id,session_id,question_id,answer_text FROM responses ORDER BY created_at DESC 
+LIMIT 10').fetchall()]:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: answer_text

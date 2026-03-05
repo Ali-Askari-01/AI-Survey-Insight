@@ -79,6 +79,13 @@
                     Already have an account? <a href="#" id="show-login">Sign in</a>
                 </div>
             </form>
+
+            <!-- Google Sign-In (outside forms to avoid validation conflicts) -->
+            <div class="auth-divider"><span>or</span></div>
+            <button type="button" class="btn btn-google btn-block" id="google-login-btn">
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Continue with Google
+            </button>
         </div>
     </div>
 
@@ -114,18 +121,6 @@
                 <i class="fas fa-folder-open"></i>
                 <span>My Surveys</span>
             </a>
-            <a href="#" class="nav-item" data-page="web-form" role="menuitem">
-                <i class="fas fa-file-alt"></i>
-                <span>Web Form</span>
-            </a>
-            <a href="#" class="nav-item" data-page="chat" role="menuitem">
-                <i class="fas fa-comments"></i>
-                <span>Chat Interview</span>
-            </a>
-            <a href="#" class="nav-item" data-page="voice" role="menuitem">
-                <i class="fas fa-microphone"></i>
-                <span>Voice Input</span>
-            </a>
             <a href="#" class="nav-item" data-page="insights" role="menuitem">
                 <i class="fas fa-lightbulb"></i>
                 <span>Insights</span>
@@ -145,7 +140,9 @@
                     <option value="pm" selected>Product Manager</option>
                     <option value="designer">Designer</option>
                     <option value="engineer">Engineer</option>
+                    <option value="other">Other...</option>
                 </select>
+                <input type="text" id="role-custom-input" class="role-custom-input" placeholder="Enter your role" maxlength="30" hidden>
             </div>
             <div class="sidebar-info">
                 <small>AI Insight Engine v1.0</small>
@@ -199,9 +196,6 @@
             <div class="page-content active" id="page-dashboard"></div>
             <div class="page-content" id="page-survey-designer"></div>
             <div class="page-content" id="page-my-surveys"></div>
-            <div class="page-content" id="page-web-form"></div>
-            <div class="page-content" id="page-chat"></div>
-            <div class="page-content" id="page-voice"></div>
             <div class="page-content" id="page-insights"></div>
             <div class="page-content" id="page-reports"></div>
         </div>
@@ -232,9 +226,6 @@
     <script src="/js/components/notifications.js"></script>
     <script src="/js/components/survey-designer.js"></script>
     <script src="/js/components/my-surveys.js"></script>
-    <script src="/js/components/web-form.js"></script>
-    <script src="/js/components/chat-interface.js"></script>
-    <script src="/js/components/voice-input.js"></script>
     <script src="/js/components/insight-dashboard.js"></script>
     <script src="/js/components/report-panel.js"></script>
     <script src="/js/app.js"></script>

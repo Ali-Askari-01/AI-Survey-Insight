@@ -115,6 +115,61 @@
     text-decoration: underline;
 }
 
+/* ── Google Sign-In Button ── */
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    background: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-family: 'Inter', 'Roboto', sans-serif;
+}
+
+.btn-google:hover {
+    background: #f7f8f8;
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15);
+}
+
+.btn-google:active {
+    background: #eef0f1;
+}
+
+.btn-google svg {
+    flex-shrink: 0;
+}
+
+/* ── Auth Divider ── */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    gap: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border, #d1d5db);
+}
+
+.auth-divider span {
+    font-size: 0.8rem;
+    color: var(--text-tertiary, #9ca3af);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+
 /* User info in sidebar footer */
 .user-info {
     display: flex;
