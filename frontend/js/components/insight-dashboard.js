@@ -10,6 +10,8 @@ const InsightDashboard = {
     surveys: [],
     _cachedData: null,
     _storyCache: null,
+    _wsListener: null,
+    _refreshDebounce: null,
 
     async init() {
         this.viewMode = App.viewMode || 'explore';
@@ -19,6 +21,31 @@ const InsightDashboard = {
         this.render();
         this.bindEvents();
         await this.loadData();
+        // Initialize Survey Analysis Chatbot
+        if (typeof SurveyChatbot !== 'undefined') SurveyChatbot.init(this.surveyId);
+        // Subscribe to real-time dashboard updates via WebSocket
+        this._setupWebSocket();
+    },
+
+    _setupWebSocket() {
+        // Connect if not already connected
+        API.ws.connect();
+        // Remove old listener if any
+        if (this._wsListener) API.ws.removeListener(this._wsListener);
+        // Create listener for dashboard refresh events
+        this._wsListener = (data) => {
+            if (data.type === 'dashboard_refresh' && data.survey_id === this.surveyId) {
+                // Debounce to avoid rapid refreshes
+                clearTimeout(this._refreshDebounce);
+                this._refreshDebounce = setTimeout(() => {
+                    this.loadData();
+                    if (typeof Helpers !== 'undefined' && Helpers.toast) {
+                        Helpers.toast('Updated', 'Dashboard refreshed with new data.', 'info', 3000);
+                    }
+                }, 2000);
+            }
+        };
+        API.ws.onMessage(this._wsListener);
     },
 
     onViewModeChange(mode) {
@@ -154,6 +181,8 @@ const InsightDashboard = {
             this.surveyId = parseInt(e.target.value);
             App.activeSurveyId = this.surveyId;
             this.loadData();
+            // Update chatbot survey context
+            if (typeof SurveyChatbot !== 'undefined') SurveyChatbot.setSurveyId(this.surveyId);
         });
 
         // Filters
@@ -443,12 +472,134 @@ const InsightDashboard = {
                                 <span class="badge">${Helpers.escapeHtml(ins.feature_area || ins.insight_type || 'General')}</span>
                                 ${ins.frequency ? `<span class="badge"><i class="fas fa-users"></i> ${ins.frequency}</span>` : ''}
                                 ${ins.impact_score ? `<span class="badge">Impact: ${(ins.impact_score * 10).toFixed(1)}/10</span>` : ''}
+                                <button class="badge annotation-btn" data-insight-id="${ins.id}" title="Add annotation"><i class="fas fa-comment-dots"></i> Annotate</button>
                             </div>
+                            <div class="insight-annotations" id="annotations-insight-${ins.id}"></div>
                         </div>
                     </div>
                 `).join('')}
             </div>
         `;
+
+        // Bind annotation buttons
+        container.querySelectorAll('.annotation-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const insightId = e.currentTarget.dataset.insightId;
+                this._showAnnotationDialog(insightId, 'insight');
+            });
+        });
+
+        // Load annotation counts
+        this._loadInsightAnnotations(insights);
+    },
+
+    async _loadInsightAnnotations(insights) {
+        try {
+            const annotations = await API.insights.getAnnotations(this.surveyId, 'insight');
+            const byTarget = {};
+            annotations.forEach(a => {
+                if (!byTarget[a.target_id]) byTarget[a.target_id] = [];
+                byTarget[a.target_id].push(a);
+            });
+
+            Object.entries(byTarget).forEach(([targetId, anns]) => {
+                const container = document.getElementById(`annotations-insight-${targetId}`);
+                if (container) {
+                    container.innerHTML = anns.slice(0, 3).map(a => `
+                        <div class="annotation-note" style="border-left: 3px solid ${Helpers.escapeHtml(a.color || '#fbbf24')}">
+                            <span class="annotation-author">${Helpers.escapeHtml(a.user_name || 'Anonymous')}</span>
+                            <span class="annotation-text">${Helpers.escapeHtml(a.content)}</span>
+                            <button class="annotation-delete" data-ann-id="${a.id}" title="Delete"><i class="fas fa-times"></i></button>
+                        </div>
+                    `).join('') + (anns.length > 3 ? `<span class="annotation-more">+${anns.length - 3} more</span>` : '');
+
+                    // Bind delete buttons
+                    container.querySelectorAll('.annotation-delete').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const annId = parseInt(e.currentTarget.dataset.annId);
+                            await API.insights.deleteAnnotation(this.surveyId, annId);
+                            this.loadData();
+                        });
+                    });
+                }
+            });
+        } catch (e) {
+            console.warn('Failed to load annotations:', e);
+        }
+    },
+
+    _showAnnotationDialog(targetId, targetType) {
+        // Remove existing dialog
+        document.getElementById('annotation-dialog')?.remove();
+
+        const dialog = document.createElement('div');
+        dialog.id = 'annotation-dialog';
+        dialog.className = 'annotation-dialog-overlay';
+        dialog.innerHTML = `
+            <div class="annotation-dialog">
+                <div class="annotation-dialog-header">
+                    <h4><i class="fas fa-comment-dots"></i> Add Annotation</h4>
+                    <button class="annotation-dialog-close" id="ann-dialog-close"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="annotation-dialog-body">
+                    <input type="text" id="ann-author" class="annotation-input" placeholder="Your name" maxlength="50" value="${localStorage.getItem('annotation_author') || ''}">
+                    <textarea id="ann-content" class="annotation-textarea" placeholder="Write your annotation..." maxlength="1000" rows="3"></textarea>
+                    <div class="annotation-colors">
+                        ${['#fbbf24', '#34d399', '#60a5fa', '#f87171', '#a78bfa'].map(c =>
+                            `<button class="annotation-color-btn" data-color="${c}" style="background:${c}"></button>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="annotation-dialog-footer">
+                    <button class="btn btn-sm" id="ann-dialog-cancel">Cancel</button>
+                    <button class="btn btn-primary btn-sm" id="ann-dialog-save">Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+
+        let selectedColor = '#fbbf24';
+        dialog.querySelectorAll('.annotation-color-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                dialog.querySelectorAll('.annotation-color-btn').forEach(b => b.classList.remove('selected'));
+                e.currentTarget.classList.add('selected');
+                selectedColor = e.currentTarget.dataset.color;
+            });
+        });
+        // Select first color by default
+        dialog.querySelector('.annotation-color-btn')?.classList.add('selected');
+
+        const close = () => dialog.remove();
+        dialog.querySelector('#ann-dialog-close').addEventListener('click', close);
+        dialog.querySelector('#ann-dialog-cancel').addEventListener('click', close);
+        dialog.addEventListener('click', (e) => { if (e.target === dialog) close(); });
+
+        dialog.querySelector('#ann-dialog-save').addEventListener('click', async () => {
+            const content = document.getElementById('ann-content')?.value?.trim();
+            const author = document.getElementById('ann-author')?.value?.trim() || 'Anonymous';
+            if (!content) return;
+
+            localStorage.setItem('annotation_author', author);
+            try {
+                await API.insights.createAnnotation(this.surveyId, {
+                    target_type: targetType,
+                    target_id: String(targetId),
+                    content,
+                    user_name: author,
+                    color: selectedColor,
+                });
+                close();
+                this.loadData();
+                if (typeof Helpers !== 'undefined' && Helpers.toast) {
+                    Helpers.toast('Saved', 'Annotation added.', 'success', 2000);
+                }
+            } catch (e) {
+                console.error('Failed to save annotation:', e);
+            }
+        });
+
+        // Focus textarea
+        setTimeout(() => document.getElementById('ann-content')?.focus(), 100);
     },
 
     populateThemeFilter(themes) {
@@ -467,6 +618,14 @@ const InsightDashboard = {
         Charts.destroy('chart-sentiment-donut');
         Charts.destroy('chart-themes-bar');
         Charts.destroy('chart-engagement');
+        // Cleanup WebSocket listener
+        if (this._wsListener) {
+            API.ws.removeListener(this._wsListener);
+            this._wsListener = null;
+        }
+        clearTimeout(this._refreshDebounce);
+        // Cleanup chatbot when leaving insights page
+        if (typeof SurveyChatbot !== 'undefined') SurveyChatbot.destroy();
     },
 
     /* ── Story Mode ─────────────────────────────────────── */

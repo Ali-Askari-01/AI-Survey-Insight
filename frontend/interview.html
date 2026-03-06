@@ -81,8 +81,16 @@
         .btn-back { background: none; border: none; color: var(--neutral-500); cursor: pointer; font-size: 0.9rem; padding: 8px 0; }
         .btn-back:hover { color: var(--primary-500); }
 
+        /* ─── Progress Header (shared) ─── */
+        .progress-header { display: flex; align-items: center; gap: 12px; padding: 0 32px 16px; }
+        .progress-header .progress-bar { flex: 1; margin-bottom: 0; }
+        .progress-header .progress-label { font-size: 0.8rem; color: var(--neutral-500); white-space: nowrap; font-weight: 600; min-width: 80px; text-align: right; }
+
         /* ─── Chat Interface ─── */
         .chat-container { display: flex; flex-direction: column; height: 70vh; max-height: 600px; }
+        .chat-progress-bar { height: 4px; background: var(--neutral-200); width: 100%; }
+        .chat-progress-bar-fill { height: 100%; background: var(--success); transition: width 0.5s ease; }
+        .chat-progress-info { display: flex; justify-content: space-between; padding: 6px 16px; font-size: 0.75rem; color: var(--neutral-500); background: var(--neutral-50); border-bottom: 1px solid var(--neutral-200); }
         .chat-messages {
             flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
             background: var(--neutral-50);
@@ -145,6 +153,11 @@
         .completion-screen .icon { font-size: 4rem; color: var(--success); margin-bottom: 16px; }
         .completion-screen h2 { font-size: 1.5rem; margin-bottom: 8px; }
         .completion-screen p { color: var(--neutral-500); }
+        .topic-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+        .topic-pill { background: var(--primary-50); color: var(--primary-700); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; border: 1px solid var(--primary-200); }
+        .summary-box { background: var(--neutral-50); border-radius: var(--radius-lg); padding: 20px; margin-top: 20px; text-align: left; }
+        .summary-box h4 { font-size: 0.9rem; color: var(--primary-600); margin-bottom: 10px; }
+        .summary-box p { font-size: 0.88rem; color: var(--neutral-700); line-height: 1.6; }
 
         /* ─── Utilities ─── */
         .hidden { display: none !important; }
@@ -153,6 +166,29 @@
         .mt-3 { margin-top: 24px; }
         .mb-2 { margin-bottom: 16px; }
         .text-muted { color: var(--neutral-500); }
+
+        /* ─── Language Selector ─── */
+        .lang-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 12px 14px; background: var(--primary-50); border-radius: var(--radius-md); border: 1px solid var(--primary-200); }
+        .lang-selector i { color: var(--primary-500); }
+        .lang-selector select { flex: 1; padding: 8px 10px; border: 1px solid var(--neutral-200); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; background: white; cursor: pointer; }
+        .lang-selector select:focus { outline: none; border-color: var(--primary-500); }
+
+        /* ─── Emoji Reactions ─── */
+        .emoji-reactions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .emoji-btn { font-size: 1.5rem; padding: 6px 10px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; background: white; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .emoji-btn:hover { transform: scale(1.15); border-color: var(--primary-500); }
+        .emoji-btn.selected { border-color: var(--primary-500); background: var(--primary-50); transform: scale(1.1); box-shadow: 0 0 0 2px var(--primary-200); }
+        .emoji-btn .emoji-label { font-size: 0.65rem; color: var(--neutral-500); }
+        .emoji-feedback { font-size: 0.82rem; color: var(--primary-600); margin-top: 6px; font-weight: 500; }
+
+        /* ─── Pause/Resume ─── */
+        .pause-btn { position: fixed; bottom: 20px; right: 20px; background: white; border: 2px solid var(--neutral-200); border-radius: 40px; padding: 10px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 8px; z-index: 100; transition: all 0.2s; color: var(--neutral-700); font-family: inherit; }
+        .pause-btn:hover { border-color: var(--primary-500); color: var(--primary-600); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .resume-card { background: var(--primary-50); border: 2px solid var(--primary-200); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .resume-card h4 { color: var(--primary-700); font-size: 0.95rem; margin-bottom: 8px; }
+        .resume-card p { color: var(--neutral-500); font-size: 0.88rem; margin-bottom: 12px; }
+        .resume-btns { display: flex; gap: 10px; }
+        .resume-btns button { flex: 1; }
 
         /* ─── Toast ─── */
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
@@ -229,6 +265,15 @@ const InterviewApp = {
     chatHistory: [],
     mediaRecorder: null,
     isRecording: false,
+    selectedLanguage: 'en',
+    _translatedQuestions: {},
+    _selectedEmoji: null,
+    _interviewStartTime: null,
+    _interviewDuration: 15,   // minutes, from survey settings
+    _interviewStyle: 'balanced', // deep | balanced | fast
+    _followUpCount: 0,        // follow-ups asked for current question
+    _totalFollowUps: 0,       // total follow-ups asked across all questions
+    _timerInterval: null,
 
     // ── API helpers (standalone, no dependency on main app API) ──
     async api(method, endpoint, data = null) {
@@ -251,6 +296,63 @@ const InterviewApp = {
         t.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${this.esc(message)}`;
         container.appendChild(t);
         setTimeout(() => t.remove(), 4000);
+    },
+
+    // ── Time Management ──
+    _getElapsedMinutes() {
+        if (!this._interviewStartTime) return 0;
+        return (Date.now() - this._interviewStartTime) / 60000;
+    },
+
+    _getRemainingMinutes() {
+        return this._interviewDuration - this._getElapsedMinutes();
+    },
+
+    _isTimeUp() {
+        // Allow 1 minute grace
+        return this._getElapsedMinutes() >= (this._interviewDuration + 1);
+    },
+
+    _isNearEnd() {
+        // Within last 2 minutes
+        return this._getRemainingMinutes() <= 2;
+    },
+
+    _shouldAskFollowUp() {
+        const remaining = this._getRemainingMinutes();
+        const questionsLeft = this.questions.length - this.currentQIndex - 1;
+        const profile = this._interviewStyle || 'balanced';
+
+        // Style profile controls how aggressively we probe.
+        const perQuestionMinutes = profile === 'deep' ? 1.8 : profile === 'fast' ? 1.1 : 1.5;
+        const spareBuffer = profile === 'deep' ? 0.3 : profile === 'fast' ? 0.8 : 0.5;
+        const maxFollowUpsPerQuestion = profile === 'deep' ? 4 : profile === 'fast' ? 1 : 3;
+
+        const timeNeeded = questionsLeft * perQuestionMinutes;
+        return remaining > (timeNeeded + spareBuffer) && this._followUpCount < maxFollowUpsPerQuestion;
+    },
+
+    _startTimer() {
+        this._interviewStartTime = Date.now();
+        this._timerInterval = setInterval(() => this._updateTimerDisplay(), 1000);
+    },
+
+    _updateTimerDisplay() {
+        const el = document.getElementById('interview-timer');
+        if (!el) return;
+        const elapsed = this._getElapsedMinutes();
+        const remaining = Math.max(0, this._interviewDuration - elapsed);
+        const mins = Math.floor(remaining);
+        const secs = Math.floor((remaining - mins) * 60);
+        el.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        // Change color when near end
+        if (remaining <= 2) el.style.color = 'var(--danger)';
+        else if (remaining <= 5) el.style.color = 'var(--warning)';
+        else el.style.color = 'var(--neutral-500)';
+    },
+
+    _stopTimer() {
+        if (this._timerInterval) { clearInterval(this._timerInterval); this._timerInterval = null; }
     },
 
     // ── Init ──
@@ -276,6 +378,13 @@ const InterviewApp = {
 
         if (this.surveyInfo.status !== 'active') {
             this.showError('This survey is no longer accepting responses.');
+            return;
+        }
+
+        // Check for saved session to resume
+        const saved = this._getSavedSession();
+        if (saved && saved.shareCode === this.shareCode) {
+            this._showResumePrompt(saved);
             return;
         }
 
@@ -311,16 +420,44 @@ const InterviewApp = {
                     <p style="margin-bottom:20px;line-height:1.6">
                         <i class="fas fa-info-circle" style="color:var(--primary-500)"></i>
                         This interview is powered by AI. Your responses will be kept confidential and used for research purposes.
-                        ${info.require_email ? 'Please sign in with your email to begin.' : 'Enter your email to begin (optional).'}
+                        ${info.require_email ? 'Please sign in with your email to begin.' : 'Enter your email to begin, or participate anonymously.'}
                     </p>
-                    <div class="form-group">
-                        <label for="resp-email"><i class="fas fa-envelope"></i> Email Address</label>
-                        <input type="email" id="resp-email" placeholder="you@example.com" ${info.require_email ? 'required' : ''}>
-                        <p class="error-text" id="email-error">Please enter a valid email address</p>
+                    <div id="email-fields">
+                        <div class="form-group">
+                            <label for="resp-email"><i class="fas fa-envelope"></i> Email Address</label>
+                            <input type="email" id="resp-email" placeholder="you@example.com" ${info.require_email ? 'required' : ''}>
+                            <p class="error-text" id="email-error">Please enter a valid email address</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="resp-name"><i class="fas fa-user"></i> Your Name (optional)</label>
+                            <input type="text" id="resp-name" placeholder="Jane Smith">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="resp-name"><i class="fas fa-user"></i> Your Name (optional)</label>
-                        <input type="text" id="resp-name" placeholder="Jane Smith">
+                    ${!info.require_email ? `
+                    <div id="anon-toggle" style="margin-bottom:16px">
+                        <button class="btn" id="btn-anon" style="background:var(--neutral-100);color:var(--neutral-700);width:100%;border:2px dashed var(--neutral-300);gap:8px">
+                            <i class="fas fa-user-secret"></i> Continue Anonymously
+                        </button>
+                        <p style="font-size:0.78rem;color:var(--neutral-400);text-align:center;margin-top:6px"><i class="fas fa-lock"></i> No email or name required — fully anonymous</p>
+                    </div>` : ''}
+                    <div class="lang-selector">
+                        <i class="fas fa-globe"></i>
+                        <select id="lang-select">
+                            <option value="en">English</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Français</option>
+                            <option value="de">Deutsch</option>
+                            <option value="pt">Português</option>
+                            <option value="zh">中文</option>
+                            <option value="ja">日本語</option>
+                            <option value="ko">한국어</option>
+                            <option value="ar">العربية</option>
+                            <option value="hi">हिन्दी</option>
+                            <option value="ur">اردو</option>
+                            <option value="tr">Türkçe</option>
+                            <option value="ru">Русский</option>
+                            <option value="it">Italiano</option>
+                        </select>
                     </div>
                     <button class="btn btn-primary btn-block" id="btn-start">
                         <i class="fas fa-arrow-right"></i> Continue
@@ -332,13 +469,21 @@ const InterviewApp = {
         document.getElementById('resp-email').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.handleEmailSubmit();
         });
+
+        // Anonymous participation button
+        const anonBtn = document.getElementById('btn-anon');
+        if (anonBtn) {
+            anonBtn.addEventListener('click', () => this.handleAnonymousJoin());
+        }
     },
 
     async handleEmailSubmit() {
         const emailEl = document.getElementById('resp-email');
         const nameEl = document.getElementById('resp-name');
+        const langEl = document.getElementById('lang-select');
         const email = emailEl.value.trim();
         const name = nameEl.value.trim();
+        this.selectedLanguage = langEl ? langEl.value : 'en';
 
         if (this.surveyInfo.require_email && !email) {
             document.getElementById('email-error').style.display = 'block';
@@ -351,6 +496,18 @@ const InterviewApp = {
 
         this.respondentEmail = email || 'anonymous@respondent.local';
         this.respondentName = name;
+        await this._joinAndProceed();
+    },
+
+    async handleAnonymousJoin() {
+        const langEl = document.getElementById('lang-select');
+        this.selectedLanguage = langEl ? langEl.value : 'en';
+        this.respondentEmail = 'anonymous@respondent.local';
+        this.respondentName = 'Anonymous';
+        await this._joinAndProceed();
+    },
+
+    async _joinAndProceed() {
 
         // Join the survey as a respondent
         try {
@@ -510,14 +667,35 @@ const InterviewApp = {
                 this.sessionId = session.session_id || session.id;
             }
             this._isFollowUp = false;
+            this._followUpCount = 0;
+            this._totalFollowUps = 0;
+            this._interviewDuration = this.surveyInfo.estimated_duration || 15;
+            this._interviewStyle = this.surveyInfo.interview_style || 'balanced';
 
-            // Load survey questions
-            try {
-                const surveyData = await this.api('GET', `/api/surveys/${this.surveyInfo.survey_id}`);
-                this.questions = surveyData.questions || [];
-            } catch (e) {
-                this.questions = [];
+            // Load survey questions — prefer the filtered set from publication
+            if (this.surveyInfo && this.surveyInfo.questions && this.surveyInfo.questions.length > 0) {
+                this.questions = this.surveyInfo.questions;
+            } else {
+                try {
+                    const surveyData = await this.api('GET', `/api/surveys/${this.surveyInfo.survey_id}`);
+                    this.questions = surveyData.questions || [];
+                } catch (e) {
+                    this.questions = [];
+                }
             }
+
+            // Pre-translate all questions if non-English
+            if (this.selectedLanguage !== 'en' && this.questions.length > 0) {
+                try {
+                    const texts = this.questions.map(q => q.question_text);
+                    const translated = await this._translateTexts(texts);
+                    translated.forEach((t, i) => { this._translatedQuestions[`${i}_${this.selectedLanguage}`] = t; });
+                } catch (e) { console.warn('Batch translation failed:', e.message); }
+            }
+
+            // Start interview timer
+            this._startTimer();
+            this._updateTimerDisplay();
 
             // Route to channel UI
             if (channel === 'web-form') {
@@ -537,13 +715,17 @@ const InterviewApp = {
     // WEB FORM CHANNEL
     // ═══════════════════════════════════════════
     showWebForm() {
-        this.currentQIndex = 0;
+        if (!this._isResuming) this.currentQIndex = 0;
+        this._isResuming = false;
         document.getElementById('app-root').innerHTML = `
             <div class="card" id="screen-webform">
                 <div class="card-header" style="padding:20px 32px">
                     <div style="display:flex;justify-content:space-between;align-items:center">
                         <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
-                        <span id="wf-counter" style="font-size:0.85rem;opacity:0.8">1 / ${this.questions.length || '?'}</span>
+                        <div style="display:flex;align-items:center;gap:12px">
+                            <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                            <span id="wf-counter" style="font-size:0.85rem;opacity:0.8">1 / ${this.questions.length || '?'}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="webform-container">
@@ -559,10 +741,11 @@ const InterviewApp = {
 
         document.getElementById('wf-next').addEventListener('click', () => this.webFormNext());
         document.getElementById('wf-prev').addEventListener('click', () => this.webFormPrev());
+        this._showPauseButton();
         this.renderWebFormQuestion();
     },
 
-    renderWebFormQuestion() {
+    async renderWebFormQuestion() {
         const area = document.getElementById('wf-question-area');
         const q = this.questions[this.currentQIndex];
         if (!q) {
@@ -584,11 +767,37 @@ const InterviewApp = {
             nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
         }
 
+        const questionText = await this._getTranslatedQuestion(this.currentQIndex);
+
         area.innerHTML = `
             <div class="webform-question">
-                <h3><span class="q-number">Q${this.currentQIndex + 1}.</span> ${this.esc(q.question_text)}</h3>
+                <h3><span class="q-number">Q${this.currentQIndex + 1}.</span> ${this.esc(questionText)}</h3>
                 <textarea id="wf-answer" placeholder="Type your answer here..." rows="4"></textarea>
+                <div style="margin-top:10px">
+                    <p style="font-size:0.82rem;color:var(--neutral-500);margin-bottom:6px"><i class="fas fa-smile"></i> How does this question make you feel?</p>
+                    <div class="emoji-reactions" id="emoji-reactions">
+                        <button class="emoji-btn" data-emoji="love" data-value="very_positive" title="Love it">❤️<span class="emoji-label">Love</span></button>
+                        <button class="emoji-btn" data-emoji="happy" data-value="positive" title="Happy">😊<span class="emoji-label">Happy</span></button>
+                        <button class="emoji-btn" data-emoji="neutral" data-value="neutral" title="Neutral">😐<span class="emoji-label">Neutral</span></button>
+                        <button class="emoji-btn" data-emoji="confused" data-value="confused" title="Confused">😕<span class="emoji-label">Confused</span></button>
+                        <button class="emoji-btn" data-emoji="sad" data-value="negative" title="Sad">😔<span class="emoji-label">Sad</span></button>
+                        <button class="emoji-btn" data-emoji="angry" data-value="very_negative" title="Frustrated">😡<span class="emoji-label">Frustrated</span></button>
+                    </div>
+                    <div class="emoji-feedback hidden" id="emoji-feedback"></div>
+                </div>
             </div>`;
+
+        this._selectedEmoji = null;
+        document.querySelectorAll('#emoji-reactions .emoji-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#emoji-reactions .emoji-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this._selectedEmoji = { emoji: btn.dataset.emoji, value: btn.dataset.value };
+                const fb = document.getElementById('emoji-feedback');
+                fb.textContent = `Reaction: ${btn.title}`;
+                fb.classList.remove('hidden');
+            });
+        });
 
         document.getElementById('wf-answer').focus();
         document.getElementById('wf-answer').addEventListener('keydown', (e) => {
@@ -599,18 +808,61 @@ const InterviewApp = {
     async webFormNext() {
         const answer = document.getElementById('wf-answer')?.value.trim();
 
-        // If this is a follow-up answer, fire-and-forget & advance to next main question
+        // If this is a follow-up answer, submit it and decide whether to ask another follow-up
         if (this._isFollowUp) {
             this._isFollowUp = false;
             if (answer) {
-                this.api('POST', '/api/interviews/respond', {
+                const followResp = await this.api('POST', '/api/interviews/respond', {
                     session_id: this.sessionId,
                     question_id: this.questions[this.currentQIndex]?.id,
-                    response_text: '[Follow-up] ' + answer
-                }).catch(e => console.warn('Follow-up submit failed:', e.message));
+                    response_text: '[Follow-up] ' + answer,
+                    interview_context: {
+                        elapsed_minutes: Math.round(this._getElapsedMinutes() * 10) / 10,
+                        target_minutes: this._interviewDuration,
+                        interview_style: this._interviewStyle,
+                        remaining_minutes: Math.round(this._getRemainingMinutes() * 10) / 10,
+                        current_question_index: this.currentQIndex,
+                        total_questions: this.questions.length,
+                        follow_up_count: this._followUpCount,
+                        total_follow_ups: this._totalFollowUps
+                    }
+                }).catch(e => {
+                    console.warn('Follow-up submit failed:', e.message);
+                    return null;
+                });
+
+                // Ask another follow-up if time permits and AI wants deeper probing
+                if (followResp?.follow_up?.should_probe_deeper && this._shouldAskFollowUp() && !this._isTimeUp()) {
+                    this._isFollowUp = true;
+                    this._followUpCount++;
+                    this._totalFollowUps++;
+                    const area = document.getElementById('wf-question-area');
+                    area.innerHTML = `
+                        <div class="webform-question" style="border-left:3px solid var(--primary-500);padding-left:16px">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--primary-600);font-size:0.85rem;font-weight:600">
+                                <i class="fas fa-lightbulb"></i> Follow-up Question
+                            </div>
+                            <h3>${this.esc(followResp.follow_up.follow_up)}</h3>
+                            <textarea id="wf-answer" placeholder="Share more details..." rows="4"></textarea>
+                            <p style="font-size:0.75rem;color:var(--neutral-400);margin-top:8px">
+                                <i class="fas fa-forward"></i> You can also skip this by clicking Next
+                            </p>
+                        </div>`;
+                    const nextBtn2 = document.getElementById('wf-next');
+                    nextBtn2.disabled = false;
+                    nextBtn2.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
+                    document.getElementById('wf-answer').focus();
+                    document.getElementById('wf-answer').addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && e.ctrlKey) this.webFormNext();
+                    });
+                    return;
+                }
             }
+
+            // Move to next main question after follow-up chain ends
+            this._followUpCount = 0;
             this.currentQIndex++;
-            if (this.currentQIndex >= this.questions.length) {
+            if (this.currentQIndex >= this.questions.length || this._isTimeUp()) {
                 this.completeInterview();
             } else {
                 this.renderWebFormQuestion();
@@ -633,12 +885,25 @@ const InterviewApp = {
             const resp = await this.api('POST', '/api/interviews/respond', {
                 session_id: this.sessionId,
                 question_id: qId,
-                response_text: answer
+                response_text: answer,
+                emoji_data: this._selectedEmoji ? JSON.stringify(this._selectedEmoji) : null,
+                interview_context: {
+                    elapsed_minutes: Math.round(this._getElapsedMinutes() * 10) / 10,
+                    target_minutes: this._interviewDuration,
+                    interview_style: this._interviewStyle,
+                    remaining_minutes: Math.round(this._getRemainingMinutes() * 10) / 10,
+                    current_question_index: this.currentQIndex,
+                    total_questions: this.questions.length,
+                    follow_up_count: this._followUpCount,
+                    total_follow_ups: this._totalFollowUps
+                }
             });
 
-            // If AI wants to probe deeper, show follow-up question
-            if (resp.follow_up?.should_probe_deeper) {
+            // If AI wants to probe deeper and time allows, show follow-up question
+            if (resp.follow_up?.should_probe_deeper && this._shouldAskFollowUp() && !this._isTimeUp()) {
                 this._isFollowUp = true;
+                this._followUpCount = 1;
+                this._totalFollowUps++;
                 const area = document.getElementById('wf-question-area');
                 area.innerHTML = `
                     <div class="webform-question" style="border-left:3px solid var(--primary-500);padding-left:16px">
@@ -667,8 +932,10 @@ const InterviewApp = {
         // No follow-up needed — advance
         nextBtn.disabled = false;
         nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Next';
+        this._followUpCount = 0;
         this.currentQIndex++;
-        if (this.currentQIndex >= this.questions.length) {
+        this._saveSession();
+        if (this.currentQIndex >= this.questions.length || this._isTimeUp()) {
             this.completeInterview();
         } else {
             this.renderWebFormQuestion();
@@ -686,17 +953,35 @@ const InterviewApp = {
     // CHAT CHANNEL
     // ═══════════════════════════════════════════
     showChat() {
+        const totalQ = this.questions.length || '?';
         document.getElementById('app-root').innerHTML = `
             <div class="card" id="screen-chat">
                 <div class="card-header" style="padding:16px 24px;display:flex;align-items:center;gap:12px">
                     <i class="fas fa-robot" style="font-size:1.5rem"></i>
-                    <div>
+                    <div style="flex:1">
                         <h1 style="font-size:1rem;margin:0">AI Interviewer</h1>
                         <p style="font-size:0.8rem;margin:0;opacity:0.8">${this.esc(this.surveyInfo.title)}</p>
                     </div>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                        <span id="chat-q-counter" style="font-size:0.8rem;opacity:0.85;white-space:nowrap">0 / ${totalQ}</span>
+                    </div>
+                </div>
+                <div class="chat-progress-bar"><div class="chat-progress-bar-fill" id="chat-progress" style="width:0%"></div></div>
+                <div class="chat-progress-info">
+                    <span id="chat-progress-text">Starting interview...</span>
+                    <span id="chat-progress-pct">0%</span>
                 </div>
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages"></div>
+                    <div id="chat-emoji-bar" style="display:flex;gap:4px;padding:6px 16px;background:var(--neutral-50);border-top:1px solid var(--neutral-200)">
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="👍" title="Thumbs up">👍</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="❤️" title="Love">❤️</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😊" title="Happy">😊</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😕" title="Confused">😕</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😔" title="Sad">😔</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="🔥" title="Fire">🔥</button>
+                    </div>
                     <div class="chat-input-area">
                         <textarea id="chat-input" placeholder="Type your answer..." rows="1"></textarea>
                         <button id="chat-send"><i class="fas fa-paper-plane"></i></button>
@@ -709,6 +994,15 @@ const InterviewApp = {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.chatSend(); }
         });
 
+        // Emoji quick reactions in chat
+        document.querySelectorAll('#chat-emoji-bar .emoji-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('chat-input');
+                input.value += ' ' + btn.dataset.emoji;
+                input.focus();
+            });
+        });
+
         // Auto-resize textarea
         const textarea = document.getElementById('chat-input');
         textarea.addEventListener('input', () => {
@@ -717,18 +1011,25 @@ const InterviewApp = {
         });
 
         // Start the chat with AI's first message
+        this._showPauseButton();
         this.chatStartConversation();
     },
 
     async chatStartConversation() {
         this.chatHistory = [];
-        this.addChatMessage('ai', "Hi there! I'm your AI interviewer. Thank you for taking the time to share your thoughts. Let's get started — I'll ask you some questions and feel free to share as much or as little as you'd like.");
+        let greeting = "Hi there! I'm your AI interviewer. Thank you for taking the time to share your thoughts. Let's get started — I'll ask you some questions and feel free to share as much or as little as you'd like.";
+        if (this.selectedLanguage !== 'en') {
+            const translated = await this._translateTexts([greeting]);
+            greeting = translated[0];
+        }
+        this.addChatMessage('ai', greeting);
 
         // Get first AI question
         if (this.questions.length > 0) {
-            setTimeout(() => {
-                this.addChatMessage('ai', this.questions[0].question_text);
-                this.chatHistory.push({ role: 'ai', message: this.questions[0].question_text });
+            setTimeout(async () => {
+                const qText = await this._getTranslatedQuestion(0);
+                this.addChatMessage('ai', qText);
+                this.chatHistory.push({ role: 'ai', message: qText });
                 this.currentQIndex = 0;
             }, 1500);
         } else {
@@ -770,10 +1071,25 @@ const InterviewApp = {
         document.getElementById('chat-send').disabled = true;
 
         try {
+            if (this._isTimeUp()) {
+                this.addChatMessage('ai', 'Thank you, this was incredibly helpful. We are at the end of our time, so I will wrap up now.');
+                setTimeout(() => this.completeInterview(), 1200);
+                return;
+            }
+
             const resp = await this.api('POST', '/api/interviews/chat', {
                 session_id: this.sessionId,
                 message: text,
-                history: this.chatHistory.slice(-10)
+                history: this.chatHistory.slice(-10),
+                interview_context: {
+                    elapsed_minutes: Math.round(this._getElapsedMinutes() * 10) / 10,
+                    target_minutes: this._interviewDuration,
+                    interview_style: this._interviewStyle,
+                    remaining_minutes: Math.round(this._getRemainingMinutes() * 10) / 10,
+                    total_follow_ups: this._totalFollowUps,
+                    current_question_index: this.currentQIndex,
+                    total_questions: this.questions.length
+                }
             });
             this.hideTyping();
             document.getElementById('chat-send').disabled = false;
@@ -788,6 +1104,7 @@ const InterviewApp = {
                 this.addChatMessage('ai', resp.ai_message);
                 this.chatHistory.push({ role: 'ai', message: resp.ai_message });
                 this.currentQIndex++;
+                this._updateChatProgress();
             }
         } catch (e) {
             this.hideTyping();
@@ -804,6 +1121,44 @@ const InterviewApp = {
             }
         }
         input.focus();
+    },
+
+    _updateChatProgress() {
+        const total = this.questions.length || 1;
+        const answered = Math.min(this.currentQIndex, total);
+        const pct = Math.round((answered / total) * 100);
+        const progressBar = document.getElementById('chat-progress');
+        const counterEl = document.getElementById('chat-q-counter');
+        const textEl = document.getElementById('chat-progress-text');
+        const pctEl = document.getElementById('chat-progress-pct');
+        if (progressBar) progressBar.style.width = pct + '%';
+        if (counterEl) counterEl.textContent = `${answered} / ${total}`;
+        if (textEl) textEl.textContent = pct >= 100 ? 'Wrapping up...' : `Question ${answered + 1} of ${total}`;
+        if (pctEl) pctEl.textContent = pct + '%';
+    },
+
+    async _translateTexts(texts) {
+        if (this.selectedLanguage === 'en' || !texts.length) return texts;
+        try {
+            const resp = await this.api('POST', '/api/interviews/translate', {
+                texts, target_language: this.selectedLanguage, source_language: 'en'
+            });
+            return resp.translations || texts;
+        } catch (e) {
+            console.warn('Translation failed:', e.message);
+            return texts;
+        }
+    },
+
+    async _getTranslatedQuestion(index) {
+        const q = this.questions[index];
+        if (!q) return null;
+        if (this.selectedLanguage === 'en') return q.question_text;
+        const key = `${index}_${this.selectedLanguage}`;
+        if (this._translatedQuestions[key]) return this._translatedQuestions[key];
+        const translated = await this._translateTexts([q.question_text]);
+        this._translatedQuestions[key] = translated[0];
+        return translated[0];
     },
 
     addChatMessage(role, text) {
@@ -835,12 +1190,21 @@ const InterviewApp = {
     // AUDIO CHANNEL
     // ═══════════════════════════════════════════
     showAudio() {
-        this.currentQIndex = 0;
+        if (!this._isResuming) this.currentQIndex = 0;
+        this._isResuming = false;
+        const totalQ = this.questions.length || '?';
         document.getElementById('app-root').innerHTML = `
             <div class="card" id="screen-audio">
                 <div class="card-header">
                     <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
-                    <p id="audio-counter">Question 1 of ${this.questions.length || '?'}</p>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <p id="audio-counter">Question 1 of ${totalQ}</p>
+                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                    </div>
+                </div>
+                <div class="progress-header">
+                    <div class="progress-bar"><div class="progress-bar-fill" id="audio-progress" style="width:0%"></div></div>
+                    <span class="progress-label" id="audio-pct-label">0%</span>
                 </div>
                 <div class="audio-container">
                     <div id="audio-question" style="font-size:1.15rem;font-weight:600;margin-bottom:8px"></div>
@@ -856,14 +1220,22 @@ const InterviewApp = {
 
         document.getElementById('mic-btn').addEventListener('click', () => this.toggleRecording());
         document.getElementById('audio-submit').addEventListener('click', () => this.audioSubmit());
+        this._showPauseButton();
         this.renderAudioQuestion();
     },
 
-    renderAudioQuestion() {
+    async renderAudioQuestion() {
         const q = this.questions[this.currentQIndex];
         if (!q) { this.completeInterview(); return; }
-        document.getElementById('audio-question').textContent = q.question_text;
-        document.getElementById('audio-counter').textContent = `Question ${this.currentQIndex + 1} of ${this.questions.length}`;
+        const total = this.questions.length;
+        const pct = Math.round((this.currentQIndex / total) * 100);
+        const questionText = await this._getTranslatedQuestion(this.currentQIndex);
+        document.getElementById('audio-question').textContent = questionText;
+        document.getElementById('audio-counter').textContent = `Question ${this.currentQIndex + 1} of ${total}`;
+        const progressEl = document.getElementById('audio-progress');
+        if (progressEl) progressEl.style.width = pct + '%';
+        const pctLabel = document.getElementById('audio-pct-label');
+        if (pctLabel) pctLabel.textContent = pct + '%';
         document.getElementById('audio-transcript').classList.add('hidden');
         document.getElementById('audio-transcript').textContent = '';
         document.getElementById('audio-actions').classList.add('hidden');
@@ -954,18 +1326,49 @@ const InterviewApp = {
     async audioSubmit() {
         const text = this._lastTranscript;
 
-        // If this is a follow-up answer, fire-and-forget & advance
+        // If this is a follow-up answer, submit and optionally ask another follow-up
         if (this._isFollowUp) {
             this._isFollowUp = false;
             if (text) {
-                this.api('POST', '/api/interviews/respond', {
+                const followResp = await this.api('POST', '/api/interviews/respond', {
                     session_id: this.sessionId,
                     question_id: this.questions[this.currentQIndex]?.id,
-                    response_text: '[Follow-up] ' + text
-                }).catch(e => console.warn('Follow-up submit failed:', e.message));
+                    response_text: '[Follow-up] ' + text,
+                    interview_context: {
+                        elapsed_minutes: Math.round(this._getElapsedMinutes() * 10) / 10,
+                        target_minutes: this._interviewDuration,
+                        interview_style: this._interviewStyle,
+                        remaining_minutes: Math.round(this._getRemainingMinutes() * 10) / 10,
+                        current_question_index: this.currentQIndex,
+                        total_questions: this.questions.length,
+                        follow_up_count: this._followUpCount,
+                        total_follow_ups: this._totalFollowUps
+                    }
+                }).catch(e => {
+                    console.warn('Follow-up submit failed:', e.message);
+                    return null;
+                });
+
+                if (followResp?.follow_up?.should_probe_deeper && this._shouldAskFollowUp() && !this._isTimeUp()) {
+                    this._isFollowUp = true;
+                    this._followUpCount++;
+                    this._totalFollowUps++;
+                    const qEl = document.getElementById('audio-question');
+                    qEl.innerHTML = `<span style="color:var(--primary-600);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(followResp.follow_up.follow_up)}`;
+                    document.getElementById('audio-transcript').classList.add('hidden');
+                    document.getElementById('audio-actions').classList.add('hidden');
+                    document.getElementById('audio-status').textContent = 'Tap to record your follow-up answer (or tap Submit to skip)';
+                    this._lastTranscript = '';
+                    const submitBtn2 = document.getElementById('audio-submit');
+                    submitBtn2.disabled = false;
+                    submitBtn2.innerHTML = '<i class="fas fa-check"></i> Submit & Next';
+                    return;
+                }
             }
+
+            this._followUpCount = 0;
             this.currentQIndex++;
-            if (this.currentQIndex >= this.questions.length) {
+            if (this.currentQIndex >= this.questions.length || this._isTimeUp()) {
                 this.completeInterview();
             } else {
                 this.renderAudioQuestion();
@@ -983,12 +1386,24 @@ const InterviewApp = {
             const resp = await this.api('POST', '/api/interviews/respond', {
                 session_id: this.sessionId,
                 question_id: this.questions[this.currentQIndex]?.id,
-                response_text: text
+                response_text: text,
+                interview_context: {
+                    elapsed_minutes: Math.round(this._getElapsedMinutes() * 10) / 10,
+                    target_minutes: this._interviewDuration,
+                    interview_style: this._interviewStyle,
+                    remaining_minutes: Math.round(this._getRemainingMinutes() * 10) / 10,
+                    current_question_index: this.currentQIndex,
+                    total_questions: this.questions.length,
+                    follow_up_count: this._followUpCount,
+                    total_follow_ups: this._totalFollowUps
+                }
             });
 
-            // If AI wants to probe deeper, show follow-up
-            if (resp.follow_up?.should_probe_deeper) {
+            // If AI wants to probe deeper and time allows, show follow-up
+            if (resp.follow_up?.should_probe_deeper && this._shouldAskFollowUp() && !this._isTimeUp()) {
                 this._isFollowUp = true;
+                this._followUpCount = 1;
+                this._totalFollowUps++;
                 const qEl = document.getElementById('audio-question');
                 qEl.innerHTML = `<span style="color:var(--primary-600);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(resp.follow_up.follow_up)}`;
                 document.getElementById('audio-transcript').classList.add('hidden');
@@ -1006,8 +1421,9 @@ const InterviewApp = {
 
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit & Next';
+        this._followUpCount = 0;
         this.currentQIndex++;
-        if (this.currentQIndex >= this.questions.length) {
+        if (this.currentQIndex >= this.questions.length || this._isTimeUp()) {
             this.completeInterview();
         } else {
             this.renderAudioQuestion();
@@ -1018,10 +1434,29 @@ const InterviewApp = {
     // COMPLETION
     // ═══════════════════════════════════════════
     async completeInterview() {
-        // Save transcript and complete session
+        // Clean up pause button and saved session
+        document.getElementById('pause-btn')?.remove();
+        this._clearSavedSession();
+        this._stopTimer();
+
+        // Show loading state while generating summary
+        document.getElementById('app-root').innerHTML = `
+            <div class="card">
+                <div class="card-header" style="background:linear-gradient(135deg,#22c55e,#16a34a)">
+                    <i class="fas fa-check-circle" style="font-size:2.5rem;margin-bottom:8px"></i>
+                    <h1>Finishing Up...</h1>
+                </div>
+                <div class="card-body text-center" style="padding:48px">
+                    <div class="typing-dots" style="justify-content:center;margin-bottom:16px"><span></span><span></span><span></span></div>
+                    <p class="text-muted">Generating your feedback summary...</p>
+                </div>
+            </div>`;
+
+        let report = null;
         let hadError = false;
         try {
-            await this.api('POST', `/api/interviews/sessions/${this.sessionId}/complete`);
+            const result = await this.api('POST', `/api/interviews/sessions/${this.sessionId}/complete`);
+            report = result.report;
         } catch (e) { console.warn('Complete failed:', e.message); hadError = true; }
 
         try {
@@ -1029,6 +1464,29 @@ const InterviewApp = {
         } catch (e) { console.warn('Transcript save failed:', e.message); hadError = true; }
 
         if (hadError) this.toast('Some data may not have saved. Your responses were still recorded.', 'warning');
+
+        // Build topic pills from report
+        let topicsHTML = '';
+        let summaryHTML = '';
+        if (report) {
+            const ts = report.transcript_summary || {};
+            const topics = ts.key_topics_discussed || report.key_topics || [];
+            if (topics.length > 0) {
+                topicsHTML = `
+                    <div style="margin-top:20px">
+                        <p style="font-size:0.88rem;color:var(--neutral-500);margin-bottom:8px"><i class="fas fa-tags" style="color:var(--primary-500)"></i> Topics you covered:</p>
+                        <div class="topic-pills">${topics.map(t => `<span class="topic-pill">${this.esc(typeof t === 'string' ? t : t.name || t.topic || '')}</span>`).join('')}</div>
+                    </div>`;
+            }
+            const summary = report.summary || report.executive_summary || '';
+            if (summary) {
+                summaryHTML = `
+                    <div class="summary-box">
+                        <h4><i class="fas fa-clipboard-check"></i> Your Feedback Summary</h4>
+                        <p>${this.esc(summary)}</p>
+                    </div>`;
+            }
+        }
 
         document.getElementById('app-root').innerHTML = `
             <div class="card">
@@ -1039,6 +1497,8 @@ const InterviewApp = {
                 <div class="completion-screen">
                     <h2>Your interview is complete</h2>
                     <p class="text-muted mb-2">Thank you for sharing your thoughts and feedback. Your responses have been recorded and will help improve the product.</p>
+                    ${topicsHTML}
+                    ${summaryHTML}
                     <div style="background:var(--neutral-50);padding:20px;border-radius:var(--radius-lg);margin-top:20px">
                         <p style="font-size:0.9rem;color:var(--neutral-500)">
                             <i class="fas fa-shield-alt" style="color:var(--primary-500)"></i>
@@ -1047,6 +1507,129 @@ const InterviewApp = {
                     </div>
                 </div>
             </div>`;
+    },
+
+    // ── Pause/Resume Methods ──
+    _getSavedSession() {
+        try {
+            const data = localStorage.getItem('insightai_saved_session');
+            return data ? JSON.parse(data) : null;
+        } catch { return null; }
+    },
+
+    _saveSession() {
+        try {
+            localStorage.setItem('insightai_saved_session', JSON.stringify({
+                shareCode: this.shareCode,
+                sessionId: this.sessionId,
+                channel: this.channel,
+                currentQIndex: this.currentQIndex,
+                respondentEmail: this.respondentEmail,
+                respondentName: this.respondentName,
+                selectedLanguage: this.selectedLanguage,
+                savedAt: new Date().toISOString()
+            }));
+        } catch (e) { console.warn('Failed to save session:', e); }
+    },
+
+    _clearSavedSession() {
+        try { localStorage.removeItem('insightai_saved_session'); } catch {}
+    },
+
+    _showResumePrompt(saved) {
+        const savedDate = new Date(saved.savedAt).toLocaleString();
+        document.getElementById('app-root').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-play-circle" style="font-size:1.8rem;margin-bottom:8px"></i>
+                    <h1>${this.esc(this.surveyInfo.title)}</h1>
+                    <p>Welcome back!</p>
+                </div>
+                <div class="card-body">
+                    <div class="resume-card">
+                        <h4><i class="fas fa-bookmark"></i> You have a saved session</h4>
+                        <p>Saved on ${this.esc(savedDate)} — Question ${saved.currentQIndex + 1} via ${this.esc(saved.channel || 'web-form')}</p>
+                        <div class="resume-btns">
+                            <button class="btn btn-primary" id="btn-resume"><i class="fas fa-play"></i> Resume</button>
+                            <button class="btn" id="btn-new" style="background:var(--neutral-200);color:var(--neutral-700)"><i class="fas fa-redo"></i> Start Fresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('btn-resume').addEventListener('click', async () => {
+            this.sessionId = saved.sessionId;
+            this.channel = saved.channel;
+            this.currentQIndex = saved.currentQIndex;
+            this.respondentEmail = saved.respondentEmail;
+            this.respondentName = saved.respondentName;
+            this.selectedLanguage = saved.selectedLanguage || 'en';
+
+            // Load questions and resume
+            document.getElementById('app-root').innerHTML = `
+                <div class="card"><div class="card-body text-center" style="padding:60px">
+                    <div class="typing-dots" style="justify-content:center;margin-bottom:16px"><span></span><span></span><span></span></div>
+                    <p class="text-muted">Resuming your interview...</p>
+                </div></div>`;
+
+            try {
+                const surveyData = await this.api('GET', `/api/surveys/${this.surveyInfo.survey_id}`);
+                this.questions = surveyData.questions || [];
+            } catch (e) { this.questions = []; }
+
+            // Pre-translate if needed
+            if (this.selectedLanguage !== 'en' && this.questions.length > 0) {
+                try {
+                    const texts = this.questions.map(q => q.question_text);
+                    const translated = await this._translateTexts(texts);
+                    translated.forEach((t, i) => { this._translatedQuestions[`${i}_${this.selectedLanguage}`] = t; });
+                } catch {}
+            }
+
+            if (this.channel === 'web-form') { this._isResuming = true; this.showWebForm(); }
+            else if (this.channel === 'chat') this.showChat();
+            else if (this.channel === 'audio') { this._isResuming = true; this.showAudio(); }
+            else this.showChannelPicker();
+        });
+
+        document.getElementById('btn-new').addEventListener('click', () => {
+            this._clearSavedSession();
+            this.showEmailScreen();
+        });
+    },
+
+    _showPauseButton() {
+        // Remove any existing pause button
+        document.getElementById('pause-btn')?.remove();
+        const btn = document.createElement('button');
+        btn.className = 'pause-btn';
+        btn.id = 'pause-btn';
+        btn.innerHTML = '<i class="fas fa-pause-circle"></i> Save & Continue Later';
+        btn.addEventListener('click', () => this._pauseInterview());
+        document.body.appendChild(btn);
+    },
+
+    _pauseInterview() {
+        this._saveSession();
+        document.getElementById('pause-btn')?.remove();
+        document.getElementById('app-root').innerHTML = `
+            <div class="card">
+                <div class="card-header" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">
+                    <i class="fas fa-bookmark" style="font-size:2rem;margin-bottom:8px"></i>
+                    <h1>Session Saved!</h1>
+                </div>
+                <div class="card-body text-center" style="padding:40px">
+                    <p style="font-size:1.05rem;margin-bottom:12px">Your progress has been saved. You can come back anytime to continue where you left off.</p>
+                    <p class="text-muted" style="margin-bottom:20px">Just open the same link and click "Resume".</p>
+                    <button class="btn btn-primary" id="btn-continue-now"><i class="fas fa-play"></i> Actually, Continue Now</button>
+                </div>
+            </div>`;
+        document.getElementById('btn-continue-now').addEventListener('click', () => {
+            const saved = this._getSavedSession();
+            if (saved) {
+                this._showResumePrompt(saved);
+            }
+        });
     },
 
     // ── Utility ──

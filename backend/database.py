@@ -91,6 +91,7 @@ def init_db():
             status TEXT DEFAULT 'draft',
             channel_type TEXT DEFAULT 'web',
             estimated_duration INTEGER DEFAULT 5,
+            interview_style TEXT DEFAULT 'balanced',
             total_responses INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -111,6 +112,7 @@ def init_db():
             follow_up_seeds TEXT,
             tone TEXT DEFAULT 'neutral',
             depth_level INTEGER DEFAULT 1,
+            audience_tag TEXT DEFAULT 'general',
             bias_score REAL DEFAULT 0,
             clarity_score REAL DEFAULT 0,
             insight_probability REAL DEFAULT 0,
@@ -477,6 +479,7 @@ def init_db():
             title TEXT NOT NULL,
             description TEXT,
             status TEXT DEFAULT 'draft',
+            audience_label TEXT DEFAULT 'general',
             web_form_enabled INTEGER DEFAULT 1,
             chat_enabled INTEGER DEFAULT 1,
             audio_enabled INTEGER DEFAULT 1,
@@ -555,6 +558,25 @@ def init_db():
         )
     """)
 
+    # ═══════════════════════════════════════════════════
+    # SURVEY ANALYSIS CHATBOT — Conversation history
+    # Stores user questions and AI answers about survey data
+    # ═══════════════════════════════════════════════════
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chatbot_conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            survey_id INTEGER NOT NULL,
+            user_id INTEGER,
+            conversation_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            message TEXT NOT NULL,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (survey_id) REFERENCES surveys(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+
     # Indexes for new publication/respondent tables
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_publications_survey ON survey_publications(survey_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_publications_code ON survey_publications(share_code)")
@@ -563,6 +585,218 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_survey_resp_respondent ON survey_respondents(respondent_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_transcripts_survey ON full_transcripts(survey_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_transcripts_session ON full_transcripts(session_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chatbot_conv_survey ON chatbot_conversations(survey_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chatbot_conv_id ON chatbot_conversations(conversation_id)")
+
+    # ═══════════════════════════════════════════════════
+    # COLLABORATIVE ANNOTATIONS
+    # Team members can annotate insights and chatbot messages
+    # ═══════════════════════════════════════════════════
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS annotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            survey_id INTEGER NOT NULL,
+            user_id INTEGER,
+            user_name TEXT,
+            target_type TEXT NOT NULL,
+            target_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            color TEXT DEFAULT '#fbbf24',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (survey_id) REFERENCES surveys(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_annotations_survey ON annotations(survey_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_annotations_target ON annotations(target_type, target_id)")
+
+    # ═══════════════════════════════════════════════════
+    # PLATFORM GOVERNANCE — Flags, Experiments, Prompt Registry
+    # ═══════════════════════════════════════════════════
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feature_flags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_enabled INTEGER DEFAULT 0,
+            rollout_percentage INTEGER DEFAULT 100,
+            conditions_json TEXT DEFAULT '{}',
+            target_scope TEXT DEFAULT 'global',
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_feature_flags_key ON feature_flags(key)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ab_experiments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            feature_flag_key TEXT,
+            status TEXT DEFAULT 'draft',
+            start_at TIMESTAMP,
+            end_at TIMESTAMP,
+            variants_json TEXT DEFAULT '[]',
+            allocation_json TEXT DEFAULT '{}',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (feature_flag_key) REFERENCES feature_flags(key)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_experiments_status ON ab_experiments(status)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS experiment_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment_id INTEGER NOT NULL,
+            user_key TEXT NOT NULL,
+            variant TEXT NOT NULL,
+            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(experiment_id, user_key),
+            FOREIGN KEY (experiment_id) REFERENCES ab_experiments(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exp_assign_experiment ON experiment_assignments(experiment_id)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS prompt_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            prompt_text TEXT NOT NULL,
+            metadata_json TEXT DEFAULT '{}',
+            is_active INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(name, version),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompt_versions_name ON prompt_versions(name)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS model_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt_version_id INTEGER,
+            feature_name TEXT,
+            model_name TEXT,
+            input_hash TEXT,
+            output_hash TEXT,
+            latency_ms INTEGER DEFAULT 0,
+            success INTEGER DEFAULT 1,
+            error_message TEXT,
+            survey_id INTEGER,
+            session_id TEXT,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (prompt_version_id) REFERENCES prompt_versions(id),
+            FOREIGN KEY (survey_id) REFERENCES surveys(id),
+            FOREIGN KEY (session_id) REFERENCES interview_sessions(session_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_runs_feature ON model_runs(feature_name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_runs_created ON model_runs(created_at)")
+
+    # ═══════════════════════════════════════════════════
+    # LLM USAGE, AUDIT, AND JOB DURABILITY
+    # ═══════════════════════════════════════════════════
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS llm_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT,
+            feature_name TEXT,
+            model_name TEXT,
+            prompt_tokens INTEGER DEFAULT 0,
+            completion_tokens INTEGER DEFAULT 0,
+            total_tokens INTEGER DEFAULT 0,
+            latency_ms INTEGER DEFAULT 0,
+            success INTEGER DEFAULT 1,
+            error_message TEXT,
+            survey_id INTEGER,
+            session_id TEXT,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (survey_id) REFERENCES surveys(id),
+            FOREIGN KEY (session_id) REFERENCES interview_sessions(session_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_llm_usage_created ON llm_usage(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_llm_usage_feature ON llm_usage(feature_name)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_trail (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            resource_type TEXT,
+            resource_id TEXT,
+            path TEXT,
+            method TEXT,
+            status_code INTEGER,
+            ip_address TEXT,
+            user_agent TEXT,
+            metadata_json TEXT DEFAULT '{}',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_trail(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_trail(user_id)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_type TEXT NOT NULL,
+            status TEXT DEFAULT 'queued',
+            payload_json TEXT DEFAULT '{}',
+            result_json TEXT,
+            error_message TEXT,
+            attempt_count INTEGER DEFAULT 0,
+            max_attempts INTEGER DEFAULT 3,
+            run_at TIMESTAMP,
+            started_at TIMESTAMP,
+            finished_at TIMESTAMP,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status_runat ON jobs(status, run_at)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS job_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            attempt_number INTEGER NOT NULL,
+            status TEXT,
+            error_message TEXT,
+            started_at TIMESTAMP,
+            finished_at TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_attempts_job ON job_attempts(job_id)")
+
+    # ── Safe migrations for existing databases ──
+    try:
+        cursor.execute("ALTER TABLE questions ADD COLUMN audience_tag TEXT DEFAULT 'general'")
+    except Exception:
+        pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE survey_publications ADD COLUMN audience_label TEXT DEFAULT 'general'")
+    except Exception:
+        pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE surveys ADD COLUMN interview_style TEXT DEFAULT 'balanced'")
+    except Exception:
+        pass  # Column already exists
 
     conn.commit()
     conn.close()
@@ -597,12 +831,12 @@ def seed_demo_data():
 
     # Survey
     cursor.execute("""
-        INSERT INTO surveys (research_goal_id, title, description, status, channel_type, estimated_duration, total_responses)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO surveys (research_goal_id, title, description, status, channel_type, estimated_duration, interview_style, total_responses)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         1, "App Churn Discovery Interview",
         "AI-guided interview to discover why new users disengage",
-        "active", "multi", 6, 247
+        "active", "multi", 6, 'balanced', 247
     ))
 
     # Questions

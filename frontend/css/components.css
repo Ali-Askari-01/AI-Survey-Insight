@@ -555,3 +555,6 @@
     z-index: 100;
 }
 .tooltip:hover::after { opacity: 1; }
+
+/* Export dropdown toggle */
+.export-dropdown-wrap.open .export-dropdown { display: block !important; }

@@ -162,7 +162,23 @@ def submit_response(response: ResponseCreate):
         _relevance = 0.8
         _q_score = round(_clarity * 0.3 + _depth * 0.4 + _relevance * 0.3, 2)
         quality = {"quality_score": _q_score, "clarity": round(_clarity, 2), "depth": round(_depth, 2), "relevance": round(_relevance, 2), "word_count": wc, "needs_follow_up": _q_score < 0.5}
-        follow_up = AIService.generate_follow_up(response.response_text)
+        ctx = response.interview_context or {}
+        follow_up = AIService.generate_follow_up(response.response_text, ctx)
+
+        # Server-side guardrails: reduce probing when near/end of time budget
+        try:
+            remaining = float(ctx.get("remaining_minutes", 999))
+            follow_up_count = int(ctx.get("follow_up_count", 0))
+            style = str(ctx.get("interview_style", "balanced")).lower()
+            max_followups = 4 if style == "deep" else 1 if style == "fast" else 2
+            if remaining <= 0.8:
+                follow_up["should_probe_deeper"] = False
+            elif remaining <= 2.0 and follow_up_count >= 1:
+                follow_up["should_probe_deeper"] = False
+            elif follow_up_count >= max_followups:
+                follow_up["should_probe_deeper"] = False
+        except Exception:
+            pass
 
         # Store response
         cursor.execute("""
@@ -376,7 +392,9 @@ def chat_message(msg: ChatMessage):
                 survey_context = {
                     "research_goal": goal_text,
                     "survey_title": survey_dict.get("title", ""),
-                    "questions": [dict(q) for q in questions]
+                    "questions": [dict(q) for q in questions],
+                    "estimated_duration": survey_dict.get("estimated_duration", 15),
+                    "interview_style": survey_dict.get("interview_style", "balanced")
                 }
 
         # Generate AI response using Gemini conversational AI with semantic memory + survey context
@@ -390,8 +408,13 @@ def chat_message(msg: ChatMessage):
         memory = conn.execute("SELECT entity, relation, value FROM semantic_memory WHERE session_id = ?", (msg.session_id,)).fetchall()
         memory_list = [dict(m) for m in memory]
 
+        interview_ctx = msg.interview_context or {}
+        if survey_context:
+            interview_ctx.setdefault("target_minutes", survey_context.get("estimated_duration", 15))
+            interview_ctx.setdefault("interview_style", survey_context.get("interview_style", "balanced"))
+
         try:
-            ai_response = AIService.generate_chat_response_with_memory(msg.message, history_list, memory_list, survey_context)
+            ai_response = AIService.generate_chat_response_with_memory(msg.message, history_list, memory_list, survey_context, interview_ctx)
         except Exception as e:
             print(f"[Chat Gemini Error] session={msg.session_id}: {e}")
             ai_response = None
@@ -436,11 +459,18 @@ def chat_message(msg: ChatMessage):
             except Exception as e:
                 print(f"[Segmentation error] {e}")
 
-        # Calculate progress and update completion_percentage
+        # Calculate progress and update completion_percentage (time-aware)
         total_questions = len(survey_context.get("questions", [])) if survey_context else 5
         response_count = conn.execute("SELECT COUNT(*) as c FROM responses WHERE session_id = ?", (msg.session_id,)).fetchone()["c"]
-        progress = min(100, round((response_count / max(total_questions, 1)) * 100))
-        interview_complete = progress >= 100
+        progress_by_questions = min(100, round((response_count / max(total_questions, 1)) * 100))
+
+        elapsed_minutes = float(interview_ctx.get("elapsed_minutes") or 0)
+        target_minutes = float(interview_ctx.get("target_minutes") or (survey_context.get("estimated_duration", 15) if survey_context else 15))
+        time_progress = min(100, round((elapsed_minutes / max(target_minutes, 1)) * 100))
+
+        progress = max(progress_by_questions, time_progress)
+        # Complete either when question plan is done, or when we crossed target+1 minute grace
+        interview_complete = (progress_by_questions >= 100) or (elapsed_minutes >= (target_minutes + 1.0))
 
         # Always update completion_percentage on session
         conn.execute(
@@ -723,3 +753,37 @@ def simulate_interview(req: SimulationRequest):
 
     conn.close()
     return {"simulations": results, "count": len(results)}
+
+
+# ── Translation Endpoint ──
+from pydantic import BaseModel as _BaseModel
+class _TranslateRequest(_BaseModel):
+    texts: list
+    target_language: str
+    source_language: str = "en"
+
+@router.post("/translate")
+def translate_texts(req: _TranslateRequest):
+    """Translate a batch of texts to the target language using AI."""
+    if not req.texts or not req.target_language:
+        raise HTTPException(status_code=400, detail="texts and target_language required")
+    if req.target_language == req.source_language:
+        return {"translations": req.texts}
+
+    # Batch translate using Gemini
+    from ..services.ai_service import _ask_gemini_json
+    prompt = f"""Translate the following texts from {req.source_language} to {req.target_language}.
+Return a JSON object with a single key "translations" containing an array of translated strings in the same order.
+Keep the translations natural and conversational.
+
+Texts to translate:
+{json.dumps(req.texts, ensure_ascii=False)}
+
+Return ONLY valid JSON like: {{"translations": ["translated text 1", "translated text 2"]}}"""
+
+    result = _ask_gemini_json(prompt, max_tokens=2048)
+    if result and "translations" in result:
+        return {"translations": result["translations"]}
+
+    # Fallback: return originals
+    return {"translations": req.texts}

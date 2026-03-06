@@ -16,7 +16,7 @@ import asyncio
 from typing import List
 
 from .database import init_db
-from .auth import get_current_user
+from .auth import get_current_user, decode_token
 from .routes import survey, interview, insights, reports, notifications, auth
 from .routes import ai_processing
 from .routes import infrastructure as infra_routes
@@ -26,6 +26,7 @@ from .routes import observability as obs_routes
 from .routes import security as sec_routes
 from .routes import survey_publish
 from .routes import backups as backup_routes
+from .routes import governance as governance_routes
 from .services.event_bus import register_default_handlers, event_bus
 from .services.ai_orchestrator import AIOrchestrator
 from .services.metrics_service import MetricsService
@@ -102,6 +103,41 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def audit_trail_middleware(request: Request, call_next):
+    """Persist an audit event for mutating API calls without affecting request flow."""
+    response = await call_next(request)
+
+    if request.url.path.startswith("/api/") and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        try:
+            user_id = None
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1].strip()
+                try:
+                    payload = decode_token(token)
+                    user_id = payload.get("sub")
+                except Exception:
+                    user_id = None
+
+            from .services.governance_service import GovernanceService
+            GovernanceService.log_audit_event(
+                action=f"{request.method} {request.url.path}",
+                path=request.url.path,
+                method=request.method,
+                status_code=response.status_code,
+                user_id=user_id,
+                resource_type="api",
+                ip_address=request.client.host if request.client else "",
+                user_agent=request.headers.get("User-Agent", ""),
+                metadata={"query": str(request.url.query)[:300]},
+            )
+        except Exception:
+            pass
+
+    return response
+
+
 # ═══════════════════════════════════════════════════
 # ROUTERS
 # ═══════════════════════════════════════════════════
@@ -119,6 +155,7 @@ app.include_router(obs_routes.router)
 app.include_router(sec_routes.router)
 app.include_router(survey_publish.router)
 app.include_router(backup_routes.router)
+app.include_router(governance_routes.router)
 
 # Serve frontend static files
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
@@ -463,6 +500,11 @@ class ConnectionManager:
 
 
 ws_manager = ConnectionManager()
+
+
+def get_ws_manager():
+    """Get the WebSocket connection manager for broadcasting from routes."""
+    return ws_manager
 
 
 @app.websocket("/ws/dashboard")

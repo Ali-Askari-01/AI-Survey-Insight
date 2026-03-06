@@ -160,6 +160,7 @@ const API = {
 
         // Templates
         getTemplates() { return API.get('/api/surveys/templates'); },
+        deleteSurvey(id) { return API.delete(`/api/surveys/${id}`); },
 
         // Goals
         listGoals() { return API.get('/api/surveys/goals'); },
@@ -213,6 +214,25 @@ const API = {
         getTrends(surveyId) { return API.get(`/api/insights/sentiment/${surveyId}/trends`); },
         getPatterns(surveyId) { return API.get(`/api/insights/patterns/${surveyId}`); },
         getStory(surveyId) { return API.get(`/api/insights/${surveyId}/story`); },
+        // Survey Analysis Chatbot
+        chatQuery(surveyId, message, conversationId = null, persona = 'analyst') {
+            return API.post(`/api/insights/${surveyId}/chat`, { message, conversation_id: conversationId, persona });
+        },
+        chatHistory(surveyId, conversationId) {
+            return API.get(`/api/insights/${surveyId}/chat/history?conversation_id=${encodeURIComponent(conversationId)}`);
+        },
+        chatConversations(surveyId) { return API.get(`/api/insights/${surveyId}/chat/conversations`); },
+        // Collaborative Annotations
+        createAnnotation(surveyId, data) { return API.post(`/api/insights/${surveyId}/annotations`, data); },
+        getAnnotations(surveyId, targetType = null, targetId = null) {
+            let qs = '';
+            const params = new URLSearchParams();
+            if (targetType) params.append('target_type', targetType);
+            if (targetId) params.append('target_id', targetId);
+            qs = params.toString();
+            return API.get(`/api/insights/${surveyId}/annotations${qs ? '?' + qs : ''}`);
+        },
+        deleteAnnotation(surveyId, annotationId) { return API.delete(`/api/insights/${surveyId}/annotations/${annotationId}`); },
     },
 
     // ── Feature 4: Reports ──

@@ -132,7 +132,8 @@ def create_survey(survey: SurveyCreate, current_user: dict = Depends(get_current
     return SurveyService.create_survey(
         research_goal_id=survey.research_goal_id, title=survey.title,
         description=survey.description, channel_type=survey.channel_type,
-        estimated_duration=survey.estimated_duration
+        estimated_duration=survey.estimated_duration,
+        interview_style=survey.interview_style
     )
 
 
@@ -155,11 +156,11 @@ def create_question(question: QuestionCreate, current_user: dict = Depends(get_c
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level, audience_tag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (question.survey_id, question.question_text, question.question_type, question.options,
           question.order_index, 1 if question.is_required else 0, question.conditional_logic,
-          question.follow_up_seeds, question.tone, question.depth_level))
+          question.follow_up_seeds, question.tone, question.depth_level, question.audience_tag))
     conn.commit()
     q_id = cursor.lastrowid
     conn.close()
@@ -299,3 +300,70 @@ def generate_consent_form(data: dict, current_user: dict = Depends(get_current_u
     goal = data.get("goal", "")
     consent_form = AIService.generate_consent_form(title, goal)
     return {"consent_form": consent_form}
+
+
+@router.delete("/{survey_id}")
+def delete_survey(survey_id: int, current_user: dict = Depends(get_current_user)):
+    """Permanently delete a survey and ALL related data (questions, sessions, responses, etc.)."""
+    conn = get_db()
+    try:
+        # Verify survey exists
+        survey = conn.execute("SELECT id, title FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+        if not survey:
+            raise HTTPException(status_code=404, detail="Survey not found")
+
+        # Enable foreign keys for cascade
+        conn.execute("PRAGMA foreign_keys = ON")
+
+        # Get all session_ids for this survey (needed for child table cleanup)
+        session_rows = conn.execute(
+            "SELECT session_id FROM interview_sessions WHERE survey_id = ?", (survey_id,)
+        ).fetchall()
+        session_ids = [r["session_id"] for r in session_rows]
+
+        # Delete in dependency order (children first)
+        if session_ids:
+            placeholders = ",".join("?" for _ in session_ids)
+            conn.execute(f"DELETE FROM semantic_memory WHERE session_id IN ({placeholders})", session_ids)
+            conn.execute(f"DELETE FROM response_segments WHERE session_id IN ({placeholders})", session_ids)
+            conn.execute(f"DELETE FROM voice_data WHERE session_id IN ({placeholders})", session_ids)
+            conn.execute(f"DELETE FROM conversation_history WHERE session_id IN ({placeholders})", session_ids)
+            conn.execute(f"DELETE FROM full_transcripts WHERE session_id IN ({placeholders})", session_ids)
+
+            # Delete responses (need response_ids for sentiment_records)
+            resp_rows = conn.execute(
+                f"SELECT id FROM responses WHERE session_id IN ({placeholders})", session_ids
+            ).fetchall()
+            if resp_rows:
+                resp_ids = [r["id"] for r in resp_rows]
+                rp = ",".join("?" for _ in resp_ids)
+                conn.execute(f"DELETE FROM sentiment_records WHERE response_id IN ({rp})", resp_ids)
+            conn.execute(f"DELETE FROM responses WHERE session_id IN ({placeholders})", session_ids)
+
+        # Delete survey-level data
+        conn.execute("DELETE FROM survey_respondents WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM interview_sessions WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM chatbot_conversations WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM survey_publications WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM recommendations WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM insights WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM themes WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM sentiment_records WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM reports WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM notifications WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM engagement_metrics WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM conversation_flow WHERE survey_id = ?", (survey_id,))
+        conn.execute("DELETE FROM questions WHERE survey_id = ?", (survey_id,))
+
+        # Finally delete the survey itself
+        conn.execute("DELETE FROM surveys WHERE id = ?", (survey_id,))
+        conn.commit()
+
+        return {"message": f"Survey '{dict(survey)['title']}' and all related data permanently deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete survey: {str(e)}")
+    finally:
+        conn.close()

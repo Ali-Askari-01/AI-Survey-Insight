@@ -236,7 +236,21 @@ def trigger_incremental_update(survey_id: int, data: dict):
     response_text = data.get("response_text", "")
     if not response_text:
         raise HTTPException(status_code=400, detail="response_text is required")
-    return InsightService.incremental_update(survey_id, response_text)
+    result = InsightService.incremental_update(survey_id, response_text)
+    # Broadcast dashboard refresh event via WebSocket
+    import asyncio
+    try:
+        from ..main import get_ws_manager
+        ws = get_ws_manager()
+        asyncio.get_event_loop().create_task(ws.broadcast({
+            "type": "dashboard_refresh",
+            "survey_id": survey_id,
+            "event": "incremental_update",
+            "timestamp": __import__('time').time()
+        }))
+    except Exception:
+        pass  # WS broadcast is best-effort
+    return result
 
 
 @router.get("/{survey_id}/contradictions")
@@ -389,3 +403,397 @@ Return ONLY valid JSON, no markdown fences."""
         })
 
     return story_data
+
+
+# ═══════════════════════════════════════════════════
+# COLLABORATIVE ANNOTATIONS
+# Team members can annotate insights and chatbot messages
+# ═══════════════════════════════════════════════════
+
+@router.post("/{survey_id}/annotations")
+def create_annotation(survey_id: int, data: dict):
+    """Create a new annotation on an insight or chatbot message."""
+    content = (data.get("content") or "").strip()
+    target_type = data.get("target_type", "insight")  # "insight" or "chatbot_message"
+    target_id = str(data.get("target_id", ""))
+    user_name = (data.get("user_name") or "Anonymous").strip()
+    color = data.get("color", "#fbbf24")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="content is required")
+    if len(content) > 1000:
+        raise HTTPException(status_code=400, detail="content too long (max 1000 chars)")
+    if target_type not in ("insight", "chatbot_message", "theme", "general"):
+        raise HTTPException(status_code=400, detail="invalid target_type")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO annotations (survey_id, user_name, target_type, target_id, content, color) VALUES (?, ?, ?, ?, ?, ?)",
+        (survey_id, user_name, target_type, target_id, content, color)
+    )
+    annotation_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return {"id": annotation_id, "message": "Annotation created"}
+
+
+@router.get("/{survey_id}/annotations")
+def get_annotations(survey_id: int, target_type: Optional[str] = Query(None), target_id: Optional[str] = Query(None)):
+    """Get annotations for a survey, optionally filtered by target."""
+    conn = get_db()
+    query = "SELECT * FROM annotations WHERE survey_id = ?"
+    params = [survey_id]
+    if target_type:
+        query += " AND target_type = ?"
+        params.append(target_type)
+    if target_id:
+        query += " AND target_id = ?"
+        params.append(target_id)
+    query += " ORDER BY created_at DESC"
+    annotations = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(a) for a in annotations]
+
+
+@router.delete("/{survey_id}/annotations/{annotation_id}")
+def delete_annotation(survey_id: int, annotation_id: int):
+    """Delete an annotation."""
+    conn = get_db()
+    conn.execute("DELETE FROM annotations WHERE id = ? AND survey_id = ?", (annotation_id, survey_id))
+    conn.commit()
+    conn.close()
+    return {"message": "Annotation deleted"}
+
+
+# ═══════════════════════════════════════════════════
+# SURVEY ANALYSIS CHATBOT
+# AI-powered Q&A about survey data, insights, and responses
+# ═══════════════════════════════════════════════════
+
+@router.post("/{survey_id}/chat")
+def chatbot_query(survey_id: int, data: dict):
+    """Ask the AI chatbot a question about survey data and get an analytical answer."""
+    import uuid
+    import traceback
+
+    user_message = (data.get("message") or "").strip()
+    conversation_id = data.get("conversation_id") or uuid.uuid4().hex[:16]
+    persona = data.get("persona", "analyst")
+
+    if not user_message:
+        raise HTTPException(status_code=400, detail="message is required")
+    if len(user_message) > 2000:
+        raise HTTPException(status_code=400, detail="message too long (max 2000 chars)")
+    if persona not in ("analyst", "executive", "researcher", "casual"):
+        persona = "analyst"
+
+    try:
+        # 1. Gather comprehensive survey context
+        context = _build_chatbot_context(survey_id)
+
+        if not context["has_data"]:
+            return {
+                "answer": "This survey doesn't have any data yet. Start collecting responses to enable analysis chat.",
+                "conversation_id": conversation_id,
+                "sources": []
+            }
+
+        # 2. Load recent conversation history for continuity
+        conv_history = _get_conversation_history(survey_id, conversation_id, limit=6)
+
+        # 3. Build the prompt with context + history + question + persona
+        prompt = _build_chatbot_prompt(context, conv_history, user_message, persona=persona)
+
+        # 4. Ask Gemini
+        raw_answer = _ask_gemini_json(prompt, max_tokens=1500)
+
+        if isinstance(raw_answer, dict):
+            answer = raw_answer.get("answer", "I couldn't generate a response. Please try rephrasing your question.")
+            sources = raw_answer.get("sources", [])
+            follow_ups = raw_answer.get("follow_up_questions", [])
+        else:
+            answer = str(raw_answer) if raw_answer else "I couldn't generate a response. Please try again."
+            sources = []
+            follow_ups = []
+
+        # 5. Store conversation in database
+        _save_chatbot_message(survey_id, conversation_id, "user", user_message)
+        _save_chatbot_message(survey_id, conversation_id, "assistant", answer)
+
+        return {
+            "answer": answer,
+            "conversation_id": conversation_id,
+            "sources": sources[:5],
+            "follow_up_questions": follow_ups[:3]
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chatbot error: {str(e)}")
+
+
+@router.get("/{survey_id}/chat/history")
+def get_chatbot_history(survey_id: int, conversation_id: str = Query(...)):
+    """Get conversation history for a chatbot session."""
+    conn = get_db()
+    messages = conn.execute(
+        "SELECT role, message, created_at FROM chatbot_conversations WHERE survey_id = ? AND conversation_id = ? ORDER BY created_at ASC",
+        (survey_id, conversation_id)
+    ).fetchall()
+    conn.close()
+    return [dict(m) for m in messages]
+
+
+@router.get("/{survey_id}/chat/conversations")
+def list_chatbot_conversations(survey_id: int):
+    """List all chatbot conversations for a survey."""
+    conn = get_db()
+    conversations = conn.execute("""
+        SELECT conversation_id, 
+               MIN(created_at) as started_at, 
+               MAX(created_at) as last_message_at,
+               COUNT(*) as message_count,
+               MIN(CASE WHEN role = 'user' THEN message END) as first_question
+        FROM chatbot_conversations 
+        WHERE survey_id = ?
+        GROUP BY conversation_id
+        ORDER BY MAX(created_at) DESC
+    """, (survey_id,)).fetchall()
+    conn.close()
+    return [dict(c) for c in conversations]
+
+
+def _build_chatbot_context(survey_id: int) -> dict:
+    """Build comprehensive survey context for the chatbot."""
+    conn = get_db()
+
+    survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+    if not survey:
+        conn.close()
+        return {"has_data": False}
+
+    survey_dict = dict(survey)
+
+    # Questions
+    questions = conn.execute(
+        "SELECT question_text, question_type, order_index FROM questions WHERE survey_id = ? ORDER BY order_index",
+        (survey_id,)
+    ).fetchall()
+
+    # Response count and samples
+    total_responses = conn.execute(
+        "SELECT COUNT(*) as c FROM responses r JOIN interview_sessions s ON r.session_id = s.session_id WHERE s.survey_id = ?",
+        (survey_id,)
+    ).fetchone()
+
+    # Sample responses (most recent, limit to keep token costs down)
+    sample_responses = conn.execute("""
+        SELECT r.response_text, r.sentiment_score, r.emotion, r.intent, r.quality_score,
+               q.question_text
+        FROM responses r
+        JOIN interview_sessions s ON r.session_id = s.session_id
+        LEFT JOIN questions q ON r.question_id = q.id
+        WHERE s.survey_id = ? AND r.response_text IS NOT NULL AND r.response_text != ''
+        ORDER BY r.created_at DESC LIMIT 50
+    """, (survey_id,)).fetchall()
+
+    # Themes
+    themes = conn.execute(
+        "SELECT name, frequency, sentiment_avg, priority, is_emerging FROM themes WHERE survey_id = ? ORDER BY frequency DESC",
+        (survey_id,)
+    ).fetchall()
+
+    # Insights
+    insights = conn.execute(
+        "SELECT title, description, insight_type, sentiment, confidence, impact_score, feature_area FROM insights WHERE survey_id = ? ORDER BY impact_score DESC",
+        (survey_id,)
+    ).fetchall()
+
+    # Sentiment distribution
+    sentiment_dist = conn.execute(
+        "SELECT sentiment, COUNT(*) as count FROM insights WHERE survey_id = ? GROUP BY sentiment",
+        (survey_id,)
+    ).fetchall()
+
+    # Recommendations
+    recommendations = conn.execute(
+        "SELECT title, description, action_type, impact_score, effort_score, priority_score, status FROM recommendations WHERE survey_id = ? ORDER BY priority_score DESC",
+        (survey_id,)
+    ).fetchall()
+
+    # Session stats
+    sessions = conn.execute(
+        "SELECT COUNT(*) as total, AVG(engagement_score) as avg_engagement, AVG(completion_percentage) as avg_completion FROM interview_sessions WHERE survey_id = ?",
+        (survey_id,)
+    ).fetchone()
+
+    conn.close()
+
+    resp_count = dict(total_responses)["c"] if total_responses else 0
+    session_stats = dict(sessions) if sessions else {}
+
+    return {
+        "has_data": resp_count > 0 or len([dict(i) for i in insights]) > 0,
+        "survey": survey_dict,
+        "questions": [dict(q) for q in questions],
+        "total_responses": resp_count,
+        "sample_responses": [dict(r) for r in sample_responses],
+        "themes": [dict(t) for t in themes],
+        "insights": [dict(i) for i in insights],
+        "sentiment_distribution": {dict(s)["sentiment"]: dict(s)["count"] for s in sentiment_dist},
+        "recommendations": [dict(r) for r in recommendations],
+        "session_stats": session_stats
+    }
+
+
+def _get_conversation_history(survey_id: int, conversation_id: str, limit: int = 6) -> list:
+    """Retrieve recent conversation history for context."""
+    conn = get_db()
+    messages = conn.execute(
+        "SELECT role, message FROM chatbot_conversations WHERE survey_id = ? AND conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+        (survey_id, conversation_id, limit)
+    ).fetchall()
+    conn.close()
+    return [dict(m) for m in reversed(messages)]
+
+
+def _save_chatbot_message(survey_id: int, conversation_id: str, role: str, message: str):
+    """Save a chatbot message to the database."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO chatbot_conversations (survey_id, conversation_id, role, message) VALUES (?, ?, ?, ?)",
+        (survey_id, conversation_id, role, message)
+    )
+    conn.commit()
+    conn.close()
+
+
+def _detect_comparison_intent(user_message: str) -> dict:
+    """Detect if the user is asking a comparison question and extract comparison targets."""
+    import re
+    comparison_patterns = [
+        r'compare\s+(.+?)\s+(?:vs\.?|versus|and|with|to|against)\s+(.+)',
+        r'(.+?)\s+vs\.?\s+(.+)',
+        r'difference(?:s)?\s+between\s+(.+?)\s+and\s+(.+)',
+        r'how\s+does?\s+(.+?)\s+(?:compare|differ|stack up)\s+(?:to|with|against)\s+(.+)',
+        r'(.+?)\s+compared\s+to\s+(.+)',
+        r'contrast\s+(.+?)\s+(?:with|and)\s+(.+)',
+    ]
+    for pattern in comparison_patterns:
+        match = re.search(pattern, user_message, re.IGNORECASE)
+        if match:
+            return {"is_comparison": True, "target_a": match.group(1).strip(), "target_b": match.group(2).strip()}
+    # Keyword heuristic
+    comparison_keywords = ['compare', 'comparison', 'versus', ' vs ', 'differ', 'contrast', 'better', 'worse']
+    if any(kw in user_message.lower() for kw in comparison_keywords):
+        return {"is_comparison": True, "target_a": None, "target_b": None}
+    return {"is_comparison": False}
+
+
+def _build_chatbot_prompt(context: dict, conv_history: list, user_message: str, persona: str = "analyst") -> str:
+    """Build the AI prompt with full survey context and conversation history."""
+    survey = context["survey"]
+    questions = context["questions"]
+    responses = context["sample_responses"]
+    themes = context["themes"]
+    insights = context["insights"]
+    sent_dist = context["sentiment_distribution"]
+    recommendations = context["recommendations"]
+    session_stats = context["session_stats"]
+
+    # Persona system instructions
+    persona_instructions = {
+        "analyst": "You are an expert survey data analyst chatbot. You help users understand their survey results by analyzing the data provided. Be thorough, specific, and data-driven.",
+        "executive": "You are a concise executive briefing assistant. Summarize survey findings in a strategic, high-level manner suitable for C-suite stakeholders. Focus on business impact, ROI, and actionable decisions. Use bullet points and keep answers brief.",
+        "researcher": "You are a UX research specialist. Analyze survey data through the lens of user experience methodology. Highlight user pain points, behavioral patterns, and design implications. Reference specific respondent quotes when relevant.",
+        "casual": "You are a friendly, approachable survey insights helper. Explain findings in simple, everyday language. Avoid jargon and make data accessible to non-technical stakeholders. Use analogies when helpful.",
+    }
+    persona_prompt = persona_instructions.get(persona, persona_instructions["analyst"])
+
+    # Build context block
+    ctx = f"""=== SURVEY DATA CONTEXT ===
+Survey: "{survey.get('title', 'Untitled')}"
+Description: {survey.get('description', 'N/A')}
+Status: {survey.get('status', 'unknown')} | Channel: {survey.get('channel_type', 'web')}
+Total Responses: {context['total_responses']}
+Sessions: {session_stats.get('total', 0)} | Avg Engagement: {round(session_stats.get('avg_engagement', 0) or 0, 2)} | Avg Completion: {round(session_stats.get('avg_completion', 0) or 0, 1)}%
+
+Survey Questions ({len(questions)}):
+"""
+    for q in questions[:15]:
+        ctx += f"  Q{q['order_index']+1}: {q['question_text']}\n"
+
+    ctx += f"\nThemes ({len(themes)}):\n"
+    for t in themes[:10]:
+        ctx += f"  - {t['name']} (frequency: {t['frequency']}, sentiment: {round(t['sentiment_avg'], 2)}, priority: {t['priority']}{', EMERGING' if t['is_emerging'] else ''})\n"
+
+    ctx += f"\nSentiment Distribution: {json.dumps(sent_dist)}\n"
+
+    ctx += f"\nKey Insights ({len(insights)}):\n"
+    for i in insights[:12]:
+        ctx += f"  - [{i.get('sentiment','neutral')}] {i.get('title', '')}: {(i.get('description','') or '')[:120]} (impact: {i.get('impact_score',0)}, confidence: {i.get('confidence',0)}, area: {i.get('feature_area', 'general')})\n"
+
+    if recommendations:
+        ctx += f"\nRecommendations ({len(recommendations)}):\n"
+        for r in recommendations[:8]:
+            ctx += f"  - {r.get('title', r.get('description','')[:80])} (impact: {r.get('impact_score',0)}, effort: {r.get('effort_score',0)}, priority: {r.get('priority_score',0)}, status: {r.get('status','pending')})\n"
+
+    ctx += f"\nSample Respondent Answers ({len(responses)} most recent):\n"
+    for r in responses[:25]:
+        q_text = r.get('question_text', '?')[:60]
+        r_text = (r.get('response_text', '') or '')[:150]
+        sentiment = f"sentiment:{r.get('sentiment_score','?')}" if r.get('sentiment_score') else ""
+        emotion = f"emotion:{r.get('emotion','?')}" if r.get('emotion') else ""
+        ctx += f"  Q: {q_text}\n  A: {r_text} {sentiment} {emotion}\n"
+
+    # Build conversation history block
+    history_block = ""
+    if conv_history:
+        history_block = "\n=== CONVERSATION HISTORY ===\n"
+        for msg in conv_history:
+            role_label = "User" if msg["role"] == "user" else "Assistant"
+            history_block += f"{role_label}: {msg['message']}\n"
+
+    # Detect comparison intent and add comparison-specific instructions
+    comparison = _detect_comparison_intent(user_message)
+    comparison_instructions = ""
+    if comparison["is_comparison"]:
+        comparison_instructions = """
+
+=== COMPARISON MODE ===
+The user is asking a comparison question. Structure your answer as a clear comparison:
+1. **Overview**: Briefly describe both items being compared
+2. **Side-by-Side Analysis**: Compare them across key dimensions (sentiment, frequency, impact, themes, user feedback)
+3. **Key Differences**: Highlight the most important distinctions with specific data points
+4. **Key Similarities**: Note any common ground
+5. **Verdict/Recommendation**: Provide a data-backed recommendation or conclusion
+
+Use a comparison table format (using markdown) when it helps clarity. Always cite specific numbers from the data."""
+
+    prompt = f"""{persona_prompt}
+
+{ctx}
+{history_block}
+
+=== USER'S QUESTION ===
+{user_message}
+{comparison_instructions}
+
+=== INSTRUCTIONS ===
+Answer the user's question based ONLY on the survey data provided above. Be specific with numbers, percentages, and references to actual themes/insights/responses.
+
+If the user asks something not answerable from the data, say so honestly.
+
+Provide actionable, data-driven answers. Reference specific themes, insights, sentiment scores, and respondent quotes when relevant.
+
+Return a JSON object with exactly these keys:
+- "answer": Your detailed response (use markdown formatting for readability: bold, lists, etc.)
+- "sources": An array of strings citing which data points you used (e.g., "Theme: Performance - 45 mentions", "Insight: Users struggle with onboarding")
+- "follow_up_questions": An array of 2-3 suggested follow-up questions the user might want to ask
+{'"is_comparison": true,' if comparison["is_comparison"] else ''}
+
+Return ONLY valid JSON, no markdown fences."""
+
+    return prompt

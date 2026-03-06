@@ -28,6 +28,8 @@ const SurveyDesigner = {
         this.genericSet = null;         // Generic set for all audiences
         this.activeAudienceTab = 'generic'; // Currently viewed tab
         this.surveyTitle = '';           // User-defined survey title
+        this.interviewDuration = 15;     // Interview duration in minutes
+        this.interviewStyle = 'balanced'; // deep | balanced | fast
         this.includeConsent = false;     // Whether to include consent form
         this.consentFormText = '';       // AI-generated consent form HTML
         this.render();
@@ -72,6 +74,23 @@ const SurveyDesigner = {
                                     <label for="survey-title-input" style="font-weight:600">Survey Title <span style="color:var(--danger)">*</span></label>
                                     <input type="text" id="survey-title-input" placeholder="e.g. DYHE Course Experience Survey" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:1rem" maxlength="120">
                                     <p class="text-muted" style="font-size:0.8rem;margin-top:4px">This title will be shown to respondents at the top of the interview.</p>
+                                </div>
+                                <div class="form-group mb-2" style="margin-top:var(--space-3)">
+                                    <label for="duration-input" style="font-weight:600"><i class="fas fa-clock" style="color:var(--primary-500)"></i> Interview Duration (minutes)</label>
+                                    <div style="display:flex;align-items:center;gap:12px">
+                                        <input type="range" id="duration-slider" min="5" max="60" value="15" step="5" style="flex:1;accent-color:var(--primary-500)">
+                                        <span id="duration-value" style="font-weight:700;font-size:1.1rem;color:var(--primary-500);min-width:60px;text-align:center">15 min</span>
+                                    </div>
+                                    <p class="text-muted" style="font-size:0.8rem;margin-top:4px">The AI interviewer will dynamically adjust questions to fit within this time. It may go ~1 minute over or under.</p>
+                                </div>
+                                <div class="form-group mb-2" style="margin-top:var(--space-3)">
+                                    <label for="interview-style" style="font-weight:600"><i class="fas fa-sliders" style="color:var(--primary-500)"></i> Interview Style</label>
+                                    <select id="interview-style" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.95rem">
+                                        <option value="deep">Deep - ask more probing follow-ups</option>
+                                        <option value="balanced" selected>Balanced - depth with time control</option>
+                                        <option value="fast">Fast - fewer follow-ups, quicker pace</option>
+                                    </select>
+                                    <p class="text-muted" style="font-size:0.8rem;margin-top:4px">Choose how aggressively the AI probes for detail.</p>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:12px;margin-top:var(--space-3);padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-md)">
                                     <label class="switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
@@ -249,6 +268,22 @@ const SurveyDesigner = {
     bindEvents() {
         // Goal analysis
         document.getElementById('btn-analyze-goal')?.addEventListener('click', () => this.analyzeGoal());
+        document.getElementById('btn-send-goal')?.addEventListener('click', () => this.analyzeGoal());
+
+        // Duration slider
+        const durationSlider = document.getElementById('duration-slider');
+        if (durationSlider) {
+            durationSlider.addEventListener('input', () => {
+                this.interviewDuration = parseInt(durationSlider.value);
+                document.getElementById('duration-value').textContent = this.interviewDuration + ' min';
+            });
+        }
+        const styleSelect = document.getElementById('interview-style');
+        if (styleSelect) {
+            styleSelect.addEventListener('change', () => {
+                this.interviewStyle = styleSelect.value || 'balanced';
+            });
+        }
 
         // Navigation
         document.getElementById('btn-prev-step')?.addEventListener('click', () => this.goStep(this.currentStep - 1));
@@ -521,7 +556,9 @@ const SurveyDesigner = {
                 title: surveyTitle,
                 description: this.goalText,
                 research_goal_id: goal.id,
-                channel_type: 'multi'
+                channel_type: 'multi',
+                estimated_duration: this.interviewDuration,
+                interview_style: this.interviewStyle
             });
             this.survey = survey;
 
@@ -537,10 +574,32 @@ const SurveyDesigner = {
                         is_required: true,
                         follow_up_seeds: JSON.stringify(q.follow_ups || []),
                         tone: q.tone || 'neutral',
-                        depth_level: q.depth || 1
+                        depth_level: q.depth || 1,
+                        audience_tag: 'general'
                     });
                     this.questions[i].id = created.id;
                 } catch (e) { console.error('Failed to save question:', e); }
+            }
+
+            // Save audience-specific questions to DB
+            for (const aSet of this.audienceSets) {
+                const audQuestions = aSet.questions || [];
+                for (let i = 0; i < audQuestions.length; i++) {
+                    const q = audQuestions[i];
+                    try {
+                        await API.surveys.createQuestion({
+                            survey_id: survey.id,
+                            question_text: q.question_text,
+                            question_type: q.question_type || 'open_ended',
+                            order_index: i,
+                            is_required: true,
+                            follow_up_seeds: JSON.stringify(q.follow_ups || []),
+                            tone: q.tone || 'neutral',
+                            depth_level: q.depth || 1,
+                            audience_tag: aSet.audience
+                        });
+                    } catch (e) { console.error('Failed to save audience question:', e); }
+                }
             }
 
             // Build success message
@@ -652,6 +711,10 @@ const SurveyDesigner = {
                         <p class="mt-1 text-muted">${analysis.estimated_duration || 7} minutes</p>
                     </div>
                     <div>
+                        <strong><i class="fas fa-sliders"></i> Interview Style:</strong>
+                        <p class="mt-1 text-muted" style="text-transform:capitalize">${Helpers.escapeHtml(this.interviewStyle || 'balanced')}</p>
+                    </div>
+                    <div>
                         <strong><i class="fas fa-chess"></i> Interview Approach:</strong>
                         <p class="mt-1 text-muted">${Helpers.escapeHtml(analysis.interview_approach || 'Structured interview with follow-ups')}</p>
                     </div>
@@ -727,13 +790,13 @@ const SurveyDesigner = {
 
     /** Render question cards HTML for an array of questions */
     _renderQuestionCards(questions) {
-        return (questions || []).map((q, i) => {
+        let cards = (questions || []).map((q, i) => {
             const followUps = q.follow_ups || [];
             const depthLabel = q.depth === 1 ? 'Icebreaker' : q.depth === 2 ? 'Core' : 'Deep Dive';
             const depthColor = q.depth === 1 ? 'var(--success)' : q.depth === 2 ? 'var(--primary-500)' : 'var(--warning)';
 
             return `
-                <div class="card mb-2" style="border-left: 4px solid ${depthColor}">
+                <div class="card mb-2" style="border-left: 4px solid ${depthColor}" id="q-card-${i}">
                     <div class="card-body" style="padding: var(--space-4)">
                         <div class="flex justify-between align-center mb-1">
                             <div class="flex align-center gap-1">
@@ -741,7 +804,15 @@ const SurveyDesigner = {
                                 <span class="badge">${q.question_type || 'open_ended'}</span>
                                 <span class="badge" style="background: var(--neutral-100); color: var(--text-secondary)">${q.tone || 'neutral'}</span>
                             </div>
-                            <span class="text-muted" style="font-size:0.8rem">Q${i + 1}</span>
+                            <div class="flex align-center gap-1">
+                                <span class="text-muted" style="font-size:0.8rem">Q${i + 1}</span>
+                                <button class="btn btn-sm" style="padding:4px 8px;background:none;color:var(--primary-500);border:1px solid var(--primary-500);font-size:0.75rem" onclick="SurveyDesigner.editQuestion(${i})" title="Edit">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="btn btn-sm" style="padding:4px 8px;background:none;color:var(--danger);border:1px solid var(--danger);font-size:0.75rem" onclick="SurveyDesigner.deleteQuestion(${i})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                         <h3 style="font-size: 1rem; font-weight: 600; margin: var(--space-2) 0">${Helpers.escapeHtml(q.question_text)}</h3>
                         ${q.purpose ? `<p class="text-muted" style="font-size:0.85rem; font-style:italic"><i class="fas fa-lightbulb" style="color:var(--warning)"></i> Purpose: ${Helpers.escapeHtml(q.purpose)}</p>` : ''}
@@ -765,6 +836,136 @@ const SurveyDesigner = {
                 </div>
             `;
         }).join('');
+
+        // Add question button at the bottom
+        cards += `
+            <div style="text-align:center;margin-top:var(--space-3)">
+                <button class="btn btn-secondary" onclick="SurveyDesigner.addQuestion()" style="gap:8px">
+                    <i class="fas fa-plus"></i> Add Question
+                </button>
+            </div>
+        `;
+        return cards;
+    },
+
+    /** Edit a question inline */
+    editQuestion(index) {
+        const questions = this._getActiveQuestions();
+        const q = questions[index];
+        if (!q) return;
+
+        const card = document.getElementById('q-card-' + index);
+        if (!card) return;
+
+        const body = card.querySelector('.card-body');
+        body.innerHTML = `
+            <div style="padding:var(--space-2)">
+                <label style="font-weight:600;font-size:0.85rem;margin-bottom:6px;display:block">Question Text</label>
+                <textarea id="edit-q-text-${index}" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.95rem;resize:vertical">${Helpers.escapeHtml(q.question_text)}</textarea>
+                <div class="flex gap-2 mt-2">
+                    <button class="btn btn-primary btn-sm" onclick="SurveyDesigner.saveQuestionEdit(${index})">
+                        <i class="fas fa-check"></i> Save
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="SurveyDesigner.renderReview()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        document.getElementById('edit-q-text-' + index)?.focus();
+    },
+
+    /** Save an edited question */
+    async saveQuestionEdit(index) {
+        const textarea = document.getElementById('edit-q-text-' + index);
+        if (!textarea) return;
+        const newText = textarea.value.trim();
+        if (!newText) { Helpers.toast('Error', 'Question text cannot be empty.', 'warning'); return; }
+
+        const questions = this._getActiveQuestions();
+        questions[index].question_text = newText;
+
+        // Update in DB if the question has an id, otherwise create it
+        if (questions[index].id) {
+            try {
+                await API.surveys.updateQuestion(questions[index].id, { question_text: newText });
+            } catch (e) { console.warn('Failed to update question in DB:', e); }
+        } else if (this.survey?.id) {
+            try {
+                const audienceTag = this.audienceSets.length > 0
+                    ? (this.activeAudienceTab === 'generic' ? 'general' : this.activeAudienceTab)
+                    : 'general';
+                const created = await API.surveys.createQuestion({
+                    survey_id: this.survey.id,
+                    question_text: newText,
+                    question_type: questions[index].question_type || 'open_ended',
+                    order_index: index,
+                    is_required: true,
+                    follow_up_seeds: JSON.stringify(questions[index].follow_ups || []),
+                    tone: questions[index].tone || 'neutral',
+                    depth_level: questions[index].depth || 2,
+                    audience_tag: audienceTag
+                });
+                questions[index].id = created?.id;
+            } catch (e) {
+                console.warn('Failed to create new question in DB:', e);
+            }
+        }
+
+        Helpers.toast('Updated', 'Question text saved.', 'success', 2000);
+        this.renderReview();
+    },
+
+    /** Delete a question */
+    async deleteQuestion(index) {
+        const questions = this._getActiveQuestions();
+        if (questions.length <= 1) {
+            Helpers.toast('Cannot Delete', 'You need at least one question.', 'warning');
+            return;
+        }
+        const q = questions[index];
+        if (!confirm('Delete this question?\n\n"' + q.question_text.substring(0, 80) + '..."')) return;
+
+        // Remove from DB if saved
+        if (q.id) {
+            try { await API.surveys.deleteQuestion(q.id); } catch (e) { console.warn('DB delete failed:', e); }
+        }
+
+        questions.splice(index, 1);
+        Helpers.toast('Deleted', 'Question removed.', 'success', 2000);
+        this.renderReview();
+    },
+
+    /** Add a new question manually */
+    async addQuestion() {
+        const questions = this._getActiveQuestions();
+        const newQ = {
+            question_text: '',
+            question_type: 'open_ended',
+            tone: 'neutral',
+            depth: 2,
+            follow_ups: [],
+            purpose: ''
+        };
+
+        // Add placeholder and render edit inline
+        questions.push(newQ);
+        this.renderReview();
+
+        // Immediately open edit for the new question
+        setTimeout(() => this.editQuestion(questions.length - 1), 100);
+    },
+
+    /** Get the currently active question set (generic or audience-specific) */
+    _getActiveQuestions() {
+        if (this.audienceSets.length > 0) {
+            if (this.activeAudienceTab === 'generic') {
+                return this.genericSet?.questions || this.questions;
+            }
+            const set = this.audienceSets.find(s => s.audience === this.activeAudienceTab);
+            return set?.questions || [];
+        }
+        return this.questions;
     },
 
     renderBriefing() {

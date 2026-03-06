@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/publish", tags=["survey-publish"])
 # ═══════════════════════════════════════════════════
 @router.post("/")
 def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_current_user)):
-    """Publish a survey and generate shareable links for all 3 channels."""
+    """Publish a survey and generate shareable links for all channels + per-stakeholder."""
     conn = get_db()
 
     # Verify survey exists
@@ -42,35 +42,57 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
     title = req.title or survey_dict.get("title", "Untitled Survey")
     description = req.description or survey_dict.get("description", "")
 
-    # Generate unique share code
-    share_code = uuid.uuid4().hex[:12]
-
     # Check if already published
     existing = conn.execute(
         "SELECT * FROM survey_publications WHERE survey_id = ? AND status != 'closed'",
         (req.survey_id,)
     ).fetchone()
     if existing:
-        existing_dict = dict(existing)
+        # Return all existing publications for this survey
+        all_pubs = conn.execute(
+            "SELECT * FROM survey_publications WHERE survey_id = ? AND status != 'closed' ORDER BY audience_label",
+            (req.survey_id,)
+        ).fetchall()
+        general_pub = None
+        stakeholder_pubs = []
+        for p in all_pubs:
+            pd = dict(p)
+            label = pd.get("audience_label", "general") or "general"
+            entry = {"share_code": pd["share_code"], "audience_label": label, "links": _build_links(pd["share_code"])}
+            if label == "general":
+                general_pub = entry
+            else:
+                stakeholder_pubs.append(entry)
         conn.close()
         return {
-            "id": existing_dict["id"],
-            "share_code": existing_dict["share_code"],
-            "status": existing_dict["status"],
+            "id": dict(existing)["id"],
+            "share_code": dict(existing)["share_code"],
+            "status": dict(existing)["status"],
             "message": "Survey already published",
-            "links": _build_links(existing_dict["share_code"]),
+            "links": _build_links(dict(existing)["share_code"]),
+            "stakeholder_publications": stakeholder_pubs,
         }
 
     # Get user_id from auth
     user_id = current_user["sub"]
 
+    # Discover distinct audience tags from questions
+    audience_tags = conn.execute(
+        "SELECT DISTINCT audience_tag FROM questions WHERE survey_id = ? AND audience_tag != 'general'",
+        (req.survey_id,)
+    ).fetchall()
+    audience_names = [row["audience_tag"] for row in audience_tags]
+
     cursor = conn.cursor()
+
+    # Create general publication
+    share_code = uuid.uuid4().hex[:12]
     cursor.execute("""
         INSERT INTO survey_publications
-            (survey_id, user_id, share_code, title, description, status,
+            (survey_id, user_id, share_code, title, description, status, audience_label,
              web_form_enabled, chat_enabled, audio_enabled,
              max_responses, require_email, consent_form_text, published_at)
-        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, 'active', 'general', ?, ?, ?, ?, ?, ?, ?)
     """, (
         req.survey_id, user_id, share_code, title, description,
         1 if req.web_form_enabled else 0,
@@ -81,6 +103,32 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
         req.consent_form_text or '',
         datetime.now().isoformat()
     ))
+
+    # Create per-stakeholder publications
+    stakeholder_pubs = []
+    for aud_name in audience_names:
+        aud_code = uuid.uuid4().hex[:12]
+        cursor.execute("""
+            INSERT INTO survey_publications
+                (survey_id, user_id, share_code, title, description, status, audience_label,
+                 web_form_enabled, chat_enabled, audio_enabled,
+                 max_responses, require_email, consent_form_text, published_at)
+            VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            req.survey_id, user_id, aud_code, f"{title} — {aud_name}", description, aud_name,
+            1 if req.web_form_enabled else 0,
+            1 if req.chat_enabled else 0,
+            1 if req.audio_enabled else 0,
+            req.max_responses,
+            1 if req.require_email else 0,
+            req.consent_form_text or '',
+            datetime.now().isoformat()
+        ))
+        stakeholder_pubs.append({
+            "share_code": aud_code,
+            "audience_label": aud_name,
+            "links": _build_links(aud_code),
+        })
 
     # Update survey status to active
     conn.execute("UPDATE surveys SET status = 'active', updated_at = ? WHERE id = ?",
@@ -95,6 +143,7 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
         "status": "active",
         "message": "Survey published successfully",
         "links": _build_links(share_code),
+        "stakeholder_publications": stakeholder_pubs,
     }
 
 
@@ -141,11 +190,17 @@ def list_my_surveys(current_user: dict = Depends(get_current_user)):
             sd = dict(s)
             survey_id = sd["id"]
 
-            # Get publication info
+            # Get publication info (general = primary)
             pub = conn.execute(
-                "SELECT * FROM survey_publications WHERE survey_id = ? ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM survey_publications WHERE survey_id = ? AND (audience_label = 'general' OR audience_label IS NULL) AND status != 'closed' ORDER BY created_at DESC LIMIT 1",
                 (survey_id,)
             ).fetchone()
+            # Fallback: if no general pub, get any
+            if not pub:
+                pub = conn.execute(
+                    "SELECT * FROM survey_publications WHERE survey_id = ? AND status != 'closed' ORDER BY created_at DESC LIMIT 1",
+                    (survey_id,)
+                ).fetchone()
 
             # Count respondents
             resp_count = conn.execute(
@@ -173,6 +228,7 @@ def list_my_surveys(current_user: dict = Depends(get_current_user)):
 
             pub_info = None
             links = None
+            stakeholder_publications = []
             if pub:
                 pub_dict = dict(pub)
                 pub_info = {
@@ -186,10 +242,24 @@ def list_my_surveys(current_user: dict = Depends(get_current_user)):
                 }
                 links = _build_links(pub_dict["share_code"])
 
+                # Get all stakeholder-specific publications
+                all_pubs = conn.execute(
+                    "SELECT share_code, audience_label FROM survey_publications WHERE survey_id = ? AND audience_label != 'general' AND audience_label IS NOT NULL AND status != 'closed'",
+                    (survey_id,)
+                ).fetchall()
+                for ap in all_pubs:
+                    apd = dict(ap)
+                    stakeholder_publications.append({
+                        "audience_label": apd["audience_label"],
+                        "share_code": apd["share_code"],
+                        "links": _build_links(apd["share_code"]),
+                    })
+
             result.append({
                 **sd,
                 "publication": pub_info,
                 "links": links,
+                "stakeholder_publications": stakeholder_publications,
                 "respondent_count": resp_count,
                 "completed_count": completed_count,
                 "session_count": session_count,
@@ -220,10 +290,14 @@ def get_survey_by_code(share_code: str):
         raise HTTPException(status_code=410, detail="This survey has been closed")
 
     survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (pub_dict["survey_id"],)).fetchone()
+
+    # Filter questions by audience_label — stakeholder-specific publications
+    # only show questions tagged for that audience, general publications show 'general' questions
+    audience_label = pub_dict.get("audience_label", "general") or "general"
     questions = conn.execute(
         "SELECT id, question_text, question_type, options, order_index, is_required, tone, depth_level "
-        "FROM questions WHERE survey_id = ? ORDER BY order_index",
-        (pub_dict["survey_id"],)
+        "FROM questions WHERE survey_id = ? AND (audience_tag = ? OR audience_tag = 'general' OR audience_tag IS NULL) ORDER BY order_index",
+        (pub_dict["survey_id"], audience_label)
     ).fetchall()
 
     # Respondent count
@@ -246,6 +320,7 @@ def get_survey_by_code(share_code: str):
         "require_email": bool(pub_dict["require_email"]),
         "consent_form_text": pub_dict.get("consent_form_text", "") or "",
         "estimated_duration": dict(survey)["estimated_duration"] if survey else 5,
+        "interview_style": dict(survey).get("interview_style", "balanced") if survey else "balanced",
         "question_count": len(questions),
         "respondent_count": resp_count,
         "questions": [dict(q) for q in questions],

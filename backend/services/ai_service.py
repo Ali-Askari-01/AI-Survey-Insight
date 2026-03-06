@@ -7,6 +7,7 @@ import json
 import re
 import random
 import time
+import hashlib
 from datetime import datetime
 from google import genai
 from ..config import GEMINI_API_KEY, GEMINI_MODEL
@@ -18,12 +19,15 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-3-flash-preview"]
 
 
-def _ask_gemini(prompt: str, max_tokens: int = 1024, retries: int = 3) -> str:
+def _ask_gemini(prompt: str, max_tokens: int = 1024, retries: int = 3, feature_name: str = "generic") -> str:
     """Send a prompt to Gemini with retry logic and model fallback for rate limits."""
     models_to_try = [GEMINI_MODEL] + [m for m in FALLBACK_MODELS if m != GEMINI_MODEL]
+    start_total = time.time()
+    last_error = ""
 
     for model in models_to_try:
         for attempt in range(retries):
+            call_start = time.time()
             try:
                 response = client.models.generate_content(
                     model=model,
@@ -48,9 +52,41 @@ def _ask_gemini(prompt: str, max_tokens: int = 1024, retries: int = 3) -> str:
                                         text += part.text
                         text = text.strip()
                 if text:
+                    usage = getattr(response, "usage_metadata", None)
+                    prompt_tokens = int(getattr(usage, "prompt_token_count", 0) or 0) if usage else 0
+                    completion_tokens = int(getattr(usage, "candidates_token_count", 0) or 0) if usage else 0
+                    total_tokens = int(getattr(usage, "total_token_count", 0) or 0) if usage else (prompt_tokens + completion_tokens)
+                    latency_ms = int((time.time() - call_start) * 1000)
+
+                    try:
+                        from .governance_service import GovernanceService
+                        in_hash = hashlib.sha256(prompt[:4000].encode("utf-8")).hexdigest()
+                        out_hash = hashlib.sha256(text[:4000].encode("utf-8")).hexdigest()
+                        GovernanceService.log_llm_usage(
+                            endpoint="ai_service._ask_gemini",
+                            feature_name=feature_name,
+                            model_name=model,
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            total_tokens=total_tokens,
+                            latency_ms=latency_ms,
+                            success=True,
+                        )
+                        GovernanceService.log_model_run(
+                            prompt_version_id=None,
+                            feature_name=feature_name,
+                            model_name=model,
+                            input_hash=in_hash,
+                            output_hash=out_hash,
+                            latency_ms=latency_ms,
+                            success=True,
+                        )
+                    except Exception:
+                        pass
                     return text
             except Exception as e:
                 error_str = str(e)
+                last_error = error_str
                 if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
                     # Check if it's a daily quota (PerDay) — skip retries, try next model immediately
                     if "PerDay" in error_str:
@@ -63,15 +99,39 @@ def _ask_gemini(prompt: str, max_tokens: int = 1024, retries: int = 3) -> str:
                     continue
                 else:
                     print(f"[Gemini Error] Model {model}: {e}")
+                    try:
+                        from .governance_service import GovernanceService
+                        GovernanceService.log_llm_usage(
+                            endpoint="ai_service._ask_gemini",
+                            feature_name=feature_name,
+                            model_name=model,
+                            latency_ms=int((time.time() - call_start) * 1000),
+                            success=False,
+                            error_message=error_str[:500],
+                        )
+                    except Exception:
+                        pass
                     break  # Non-rate-limit error, try next model
 
     print("[Gemini] All models and retries exhausted, returning empty")
+    try:
+        from .governance_service import GovernanceService
+        GovernanceService.log_llm_usage(
+            endpoint="ai_service._ask_gemini",
+            feature_name=feature_name,
+            model_name=GEMINI_MODEL,
+            latency_ms=int((time.time() - start_total) * 1000),
+            success=False,
+            error_message=(last_error or "all_models_exhausted")[:500],
+        )
+    except Exception:
+        pass
     return ""
 
 
-def _ask_gemini_json(prompt: str, max_tokens: int = 1024):
+def _ask_gemini_json(prompt: str, max_tokens: int = 1024, feature_name: str = "generic"):
     """Send a prompt expecting JSON back; parse and return."""
-    raw = _ask_gemini(prompt, max_tokens, retries=3)
+    raw = _ask_gemini(prompt, max_tokens, retries=3, feature_name=feature_name)
     if not raw:
         return {}
     # Strip markdown fences if present
@@ -619,7 +679,7 @@ IMPORTANT:
 
 Return ONLY the consent form text, nothing else."""
 
-        result = _ask_gemini(prompt, max_tokens=800)
+        result = _ask_gemini(prompt, max_tokens=800, feature_name="consent_generation")
         if result and len(result.strip()) > 50:
             return result.strip()
 
@@ -663,6 +723,16 @@ MULTILINGUAL SUPPORT:
 - The respondent may reply in ANY language (Roman Urdu, Urdu, Hindi, English, or a mix).
 - You MUST reply in the SAME language or mix the respondent is using.
 - If they write in Roman Urdu, reply in Roman Urdu. If English, reply in English. If mixed, use the same mix.
+
+TIME MANAGEMENT:
+- If there is enough time left, ask deeper probing follow-ups to extract specific examples and details.
+- If there is very little time left (about <= 2 minutes), ask only one concise high-value follow-up or set should_probe_deeper=false.
+- If time is up, set should_probe_deeper=false.
+
+INTERVIEW STYLE (from context if provided):
+- deep: be more investigative, ask richer probing follow-ups.
+- balanced: moderate probing depth with steady pace.
+- fast: concise follow-ups, move forward quickly.
 
 Generate a JSON object with:
 - "follow_up": your next conversational follow-up question or empathetic response + question (1-2 sentences, in the respondent's language)
@@ -862,7 +932,7 @@ User: {message}
 
 Reply as the Interviewer (1-3 sentences, warm and professional, always ask a follow-up question):"""
 
-        result = _ask_gemini(prompt, max_tokens=300)
+        result = _ask_gemini(prompt, max_tokens=300, feature_name="translation")
         if result:
             return result
         # Dynamic fallback based on context
@@ -902,7 +972,7 @@ Return 2-6 entries. Return ONLY valid JSON array."""
     # Chat with Semantic Memory — enhanced context-aware response
     # ───────────────────────────────────────────────────────────
     @staticmethod
-    def generate_chat_response_with_memory(message: str, history: list = None, memory: list = None, survey_context: dict = None) -> str:
+    def generate_chat_response_with_memory(message: str, history: list = None, memory: list = None, survey_context: dict = None, interview_context: dict = None) -> str:
         """Generate a chat response enhanced with semantic memory and survey context."""
         history_text = ""
         if history:
@@ -932,8 +1002,33 @@ RESEARCH CONTEXT:
 IMPORTANT: Your task is to explore the research topics thoroughly. Use the survey questions as a guide but adapt based on the respondent's answers. If they mention something interesting, dig deeper before moving to the next topic.
 """
 
+        time_block = ""
+        if interview_context:
+            elapsed = interview_context.get("elapsed_minutes", 0)
+            target = interview_context.get("target_minutes", 15)
+            style = interview_context.get("interview_style", "balanced")
+            remaining = interview_context.get("remaining_minutes", max(0, target - elapsed) if isinstance(target, (int, float)) and isinstance(elapsed, (int, float)) else "unknown")
+            time_block = f"""
+TIME CONTEXT:
+- Elapsed minutes: {elapsed}
+- Target duration: {target} minutes
+- Interview style: {style}
+- Remaining minutes: {remaining}
+
+TIME MANAGEMENT RULES:
+- If there is enough time left, probe deeper and extract richer details.
+- If remaining time is <= 2 minutes, ask one concise high-value question and begin wrapping up.
+- If time is exceeded (target + ~1 minute), thank the respondent warmly and close naturally.
+
+STYLE RULES:
+- deep: ask more exploratory and layered follow-ups.
+- balanced: blend depth and efficiency.
+- fast: keep prompts concise, prioritize key takeaways quickly.
+"""
+
         prompt = f"""You are a world-class AI research interviewer conducting a live conversational interview.
 {context_block}
+{time_block}
 {memory_text}
 Your interviewing style:
 1. Be warm, empathetic, and genuinely curious
@@ -958,7 +1053,7 @@ User: {message}
 
 Reply as the Interviewer (acknowledge their response warmly in their language, then ask a relevant follow-up question):"""
 
-        result = _ask_gemini(prompt, max_tokens=350)
+        result = _ask_gemini(prompt, max_tokens=350, feature_name="chat_with_memory")
         if result:
             return result
         # Dynamic fallback

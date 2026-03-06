@@ -67,6 +67,7 @@ class SurveyCreate(BaseModel):
     description: Optional[str] = None
     channel_type: str = "web"
     estimated_duration: int = 5
+    interview_style: str = "balanced"
 
 
 class QuestionCreate(BaseModel):
@@ -80,6 +81,7 @@ class QuestionCreate(BaseModel):
     follow_up_seeds: Optional[str] = None
     tone: str = "neutral"
     depth_level: int = 1
+    audience_tag: str = "general"
 
 
 class QuestionUpdate(BaseModel):
@@ -107,12 +109,15 @@ class ResponseCreate(BaseModel):
     response_type: str = "text"
     emoji_data: Optional[str] = None
     voice_metadata: Optional[str] = None
+    interview_context: Optional[dict] = None
 
 
 class ChatMessage(BaseModel):
     session_id: str
     message: str
     message_type: str = "text"
+    history: Optional[List[dict]] = None
+    interview_context: Optional[dict] = None
 
 
 # ── Insight Models ──
@@ -176,3 +181,10 @@ class RespondentJoinRequest(BaseModel):
     name: Optional[str] = None
     share_code: str
     channel: str = "web"
+
+
+# ── Survey Analysis Chatbot Models ──
+class ChatbotQuery(BaseModel):
+    survey_id: int
+    message: str = Field(..., min_length=1, max_length=2000)
+    conversation_id: Optional[str] = None

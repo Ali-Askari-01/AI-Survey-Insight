@@ -70,13 +70,14 @@ class SurveyService:
     @staticmethod
     def create_survey(research_goal_id: int = None, title: str = "",
                       description: str = None, channel_type: str = "web",
-                      estimated_duration: int = 5) -> dict:
+                      estimated_duration: int = 5,
+                      interview_style: str = "balanced") -> dict:
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration)
-            VALUES (?, ?, ?, ?, ?)
-        """, (research_goal_id, title, description, channel_type, estimated_duration))
+            INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration, interview_style)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (research_goal_id, title, description, channel_type, estimated_duration, interview_style))
         conn.commit()
         survey_id = cursor.lastrowid
         conn.close()
