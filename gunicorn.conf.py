@@ -14,7 +14,6 @@ Usage:
   gunicorn -c gunicorn.conf.py backend.main:app
 """
 import os
-import multiprocessing
 
 # ─── Server Socket ───
 # Railway sets PORT dynamically; fall back to 8000 for local development
@@ -22,9 +21,9 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
 backlog = 2048
 
 # ─── Worker Processes ───
-# Rule of thumb: (2 × CPU cores) + 1
-# Override with WORKERS env var
-workers = int(os.environ.get("WORKERS", (2 * multiprocessing.cpu_count()) + 1))
+# Default: 2 workers (safe for Railway Hobby plan ~512MB RAM)
+# Scale up via WORKERS env var for higher-tier plans
+workers = int(os.environ.get("WORKERS", "2"))
 worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000
 max_requests = 1000             # Restart workers after N requests (prevent memory leaks)
