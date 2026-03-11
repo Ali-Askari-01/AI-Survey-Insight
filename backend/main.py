@@ -160,9 +160,10 @@ app.include_router(governance_routes.router)
 # Serve frontend static files
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_dir):
-    app.mount("/css", StaticFiles(directory=os.path.join(frontend_dir, "css")), name="css")
-    app.mount("/js", StaticFiles(directory=os.path.join(frontend_dir, "js")), name="js")
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dir, "assets")), name="assets")
+    for sub, route in [("css", "/css"), ("js", "/js"), ("assets", "/assets")]:
+        sub_dir = os.path.join(frontend_dir, sub)
+        if os.path.isdir(sub_dir):
+            app.mount(route, StaticFiles(directory=sub_dir), name=sub)
 
 
 # ═══════════════════════════════════════════════════
