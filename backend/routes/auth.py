@@ -74,25 +74,26 @@ def register(user: UserRegister):
         raise HTTPException(status_code=400, detail=pw_error)
 
     conn = get_db()
-    # Check if email already exists
-    existing = conn.execute("SELECT id FROM users WHERE email = ?", (user.email,)).fetchone()
-    if existing:
+    try:
+        # Check if email already exists
+        existing = conn.execute("SELECT id FROM users WHERE email = ?", (user.email,)).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Email already registered")
+
+        password_hash = hash_password(user.password)
+        # Force role to 'pm' — prevent role escalation attacks
+        safe_role = "pm"
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO users (name, email, password_hash, role)
+            VALUES (?, ?, ?, ?)
+        """, (user.name, user.email, password_hash, safe_role))
+        conn.commit()
+        user_id = cursor.lastrowid
+
+        token = create_token(user_id, user.email, safe_role)
+    finally:
         conn.close()
-        raise HTTPException(status_code=409, detail="Email already registered")
-
-    password_hash = hash_password(user.password)
-    # Force role to 'pm' — prevent role escalation attacks
-    safe_role = "pm"
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO users (name, email, password_hash, role)
-        VALUES (?, ?, ?, ?)
-    """, (user.name, user.email, password_hash, safe_role))
-    conn.commit()
-    user_id = cursor.lastrowid
-
-    token = create_token(user_id, user.email, safe_role)
-    conn.close()
 
     security_logger.info(f"REGISTER user_id={user_id} email={user.email} role={safe_role}")
 
@@ -118,33 +119,32 @@ def login(credentials: UserLogin):
         raise HTTPException(status_code=429, detail=lockout_msg)
 
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE email = ?", (credentials.email,)).fetchone()
-    if not user:
+    try:
+        user = conn.execute("SELECT * FROM users WHERE email = ?", (credentials.email,)).fetchone()
+        if not user:
+            _record_failed_login(credentials.email)
+            security_logger.warning(f"LOGIN_FAILED email={credentials.email} reason=not_found")
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        user_dict = dict(user)
+        if not verify_password(credentials.password, user_dict["password_hash"]):
+            _record_failed_login(credentials.email)
+            security_logger.warning(f"LOGIN_FAILED email={credentials.email} reason=bad_password")
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        if not user_dict["is_active"]:
+            raise HTTPException(status_code=403, detail="Account is deactivated")
+
+        # Successful login — clear failed attempts
+        _clear_failed_logins(credentials.email)
+
+        # Update last login
+        conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now().isoformat(), user_dict["id"]))
+        conn.commit()
+
+        token = create_token(user_dict["id"], user_dict["email"], user_dict["role"])
+    finally:
         conn.close()
-        _record_failed_login(credentials.email)
-        security_logger.warning(f"LOGIN_FAILED email={credentials.email} reason=not_found")
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    user_dict = dict(user)
-    if not verify_password(credentials.password, user_dict["password_hash"]):
-        conn.close()
-        _record_failed_login(credentials.email)
-        security_logger.warning(f"LOGIN_FAILED email={credentials.email} reason=bad_password")
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    if not user_dict["is_active"]:
-        conn.close()
-        raise HTTPException(status_code=403, detail="Account is deactivated")
-
-    # Successful login — clear failed attempts
-    _clear_failed_logins(credentials.email)
-
-    # Update last login
-    conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now().isoformat(), user_dict["id"]))
-    conn.commit()
-
-    token = create_token(user_dict["id"], user_dict["email"], user_dict["role"])
-    conn.close()
 
     security_logger.info(f"LOGIN user_id={user_dict['id']} email={user_dict['email']}")
 
@@ -198,20 +198,24 @@ def update_user_role(user_id: int, data: dict, current_user: dict = Depends(requ
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
 
     conn = get_db()
-    conn.execute("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", (new_role, datetime.now().isoformat(), user_id))
-    conn.commit()
-    conn.close()
-    return {"message": f"User role updated to {new_role}"}
+    try:
+        conn.execute("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", (new_role, datetime.now().isoformat(), user_id))
+        conn.commit()
+        return {"message": f"User role updated to {new_role}"}
+    finally:
+        conn.close()
 
 
 @router.put("/users/{user_id}/deactivate")
 def deactivate_user(user_id: int, current_user: dict = Depends(require_role("founder"))):
     """Deactivate a user account (founder only)."""
     conn = get_db()
-    conn.execute("UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?", (datetime.now().isoformat(), user_id))
-    conn.commit()
-    conn.close()
-    return {"message": "User deactivated"}
+    try:
+        conn.execute("UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?", (datetime.now().isoformat(), user_id))
+        conn.commit()
+        return {"message": "User deactivated"}
+    finally:
+        conn.close()
 
 
 # ═══════════════════════════════════════════════════
@@ -331,35 +335,35 @@ def google_callback(request: Request, code: str = None, error: str = None, state
 
     # Find or create user
     conn = get_db()
-    existing = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    try:
+        existing = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
 
-    if existing:
-        user_dict = dict(existing)
-        if not user_dict["is_active"]:
-            conn.close()
-            return RedirectResponse("/app?auth_error=account_deactivated")
+        if existing:
+            user_dict = dict(existing)
+            if not user_dict["is_active"]:
+                return RedirectResponse("/app?auth_error=account_deactivated")
 
-        # Update last login and avatar
-        conn.execute(
-            "UPDATE users SET last_login = ?, avatar_url = ?, updated_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), avatar_url, datetime.now().isoformat(), user_dict["id"])
-        )
-        conn.commit()
-        user_id = user_dict["id"]
-        role = user_dict["role"]
-    else:
-        # Auto-register new Google user
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO users (name, email, password_hash, role, avatar_url, last_login)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (name, email, "google_oauth", "pm", avatar_url, datetime.now().isoformat()))
-        conn.commit()
-        user_id = cursor.lastrowid
-        role = "pm"
-        security_logger.info(f"GOOGLE_REGISTER user_id={user_id} email={email}")
-
-    conn.close()
+            # Update last login and avatar
+            conn.execute(
+                "UPDATE users SET last_login = ?, avatar_url = ?, updated_at = ? WHERE id = ?",
+                (datetime.now().isoformat(), avatar_url, datetime.now().isoformat(), user_dict["id"])
+            )
+            conn.commit()
+            user_id = user_dict["id"]
+            role = user_dict["role"]
+        else:
+            # Auto-register new Google user
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO users (name, email, password_hash, role, avatar_url, last_login)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (name, email, "google_oauth", "pm", avatar_url, datetime.now().isoformat()))
+            conn.commit()
+            user_id = cursor.lastrowid
+            role = "pm"
+            security_logger.info(f"GOOGLE_REGISTER user_id={user_id} email={email}")
+    finally:
+        conn.close()
 
     # Create JWT
     jwt_token = create_token(user_id, email, role)

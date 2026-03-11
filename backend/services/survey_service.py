@@ -28,17 +28,19 @@ class SurveyService:
                     target_audience: str = None, success_criteria: str = None,
                     estimated_duration: int = 5) -> dict:
         conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO research_goals (title, description, research_type, problem_space,
-                target_outcome, target_audience, success_criteria, estimated_duration)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (title, description, research_type, problem_space,
-              target_outcome, target_audience, success_criteria, estimated_duration))
-        conn.commit()
-        goal_id = cursor.lastrowid
-        conn.close()
-        return {"id": goal_id, "message": "Research goal created"}
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO research_goals (title, description, research_type, problem_space,
+                    target_outcome, target_audience, success_criteria, estimated_duration)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (title, description, research_type, problem_space,
+                  target_outcome, target_audience, success_criteria, estimated_duration))
+            conn.commit()
+            goal_id = cursor.lastrowid
+            return {"id": goal_id, "message": "Research goal created"}
+        finally:
+            conn.close()
 
     @staticmethod
     def get_goal(goal_id: int) -> Optional[dict]:
@@ -73,14 +75,16 @@ class SurveyService:
                       estimated_duration: int = 5,
                       interview_style: str = "balanced") -> dict:
         conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration, interview_style)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (research_goal_id, title, description, channel_type, estimated_duration, interview_style))
-        conn.commit()
-        survey_id = cursor.lastrowid
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration, interview_style)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (research_goal_id, title, description, channel_type, estimated_duration, interview_style))
+            conn.commit()
+            survey_id = cursor.lastrowid
+        finally:
+            conn.close()
 
         # Publish event
         event_bus.publish(Event(

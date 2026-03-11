@@ -125,6 +125,7 @@ class EventBus:
 
     def _log_event(self, event: Event):
         """Persist event to the event_log table."""
+        conn = None
         try:
             conn = get_db()
             conn.execute("""
@@ -133,9 +134,11 @@ class EventBus:
             """, (event.event_id, event.event_type, json.dumps(event.payload),
                   event.source, event.timestamp))
             conn.commit()
-            conn.close()
         except Exception as e:
             print(f"[EventBus] Failed to log event: {e}")
+        finally:
+            if conn:
+                conn.close()
 
     def stats(self) -> dict:
         return {
@@ -211,56 +214,58 @@ def handle_interview_completed(event: Event):
 
     try:
         conn = get_db()
-        # Update survey total_responses
-        conn.execute(
-            "UPDATE surveys SET total_responses = total_responses + 1 WHERE id = ?",
-            (survey_id,)
-        )
+        try:
+            # Update survey total_responses
+            conn.execute(
+                "UPDATE surveys SET total_responses = total_responses + 1 WHERE id = ?",
+                (survey_id,)
+            )
 
-        # Recalculate engagement metrics
-        stats = conn.execute("""
-            SELECT channel,
-                   COUNT(*) as total,
-                   SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-                   AVG(completion_percentage) as avg_completion,
-                   AVG(engagement_score) as avg_engagement
-            FROM interview_sessions WHERE survey_id = ? GROUP BY channel
-        """, (survey_id,)).fetchall()
+            # Recalculate engagement metrics
+            stats = conn.execute("""
+                SELECT channel,
+                       COUNT(*) as total,
+                       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                       AVG(completion_percentage) as avg_completion,
+                       AVG(engagement_score) as avg_engagement
+                FROM interview_sessions WHERE survey_id = ? GROUP BY channel
+            """, (survey_id,)).fetchall()
 
-        for s in stats:
-            sd = dict(s)
-            total = sd["total"]
-            completed = sd["completed"] or 0
-            drop_off = round(1.0 - (completed / max(total, 1)), 3)
+            for s in stats:
+                sd = dict(s)
+                total = sd["total"]
+                completed = sd["completed"] or 0
+                drop_off = round(1.0 - (completed / max(total, 1)), 3)
 
-            existing = conn.execute(
-                "SELECT id FROM engagement_metrics WHERE survey_id = ? AND channel = ?",
-                (survey_id, sd["channel"])
-            ).fetchone()
+                existing = conn.execute(
+                    "SELECT id FROM engagement_metrics WHERE survey_id = ? AND channel = ?",
+                    (survey_id, sd["channel"])
+                ).fetchone()
 
-            if existing:
-                conn.execute("""
-                    UPDATE engagement_metrics SET total_sessions = ?, completed_sessions = ?,
-                        avg_response_quality = ?, drop_off_rate = ?, recorded_at = ?
-                    WHERE id = ?
-                """, (total, completed, round(sd["avg_engagement"] or 0, 3), drop_off,
-                      datetime.now().isoformat(), dict(existing)["id"]))
-            else:
-                conn.execute("""
-                    INSERT INTO engagement_metrics (survey_id, channel, total_sessions, completed_sessions,
-                        avg_response_quality, drop_off_rate)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (survey_id, sd["channel"], total, completed,
-                      round(sd["avg_engagement"] or 0, 3), drop_off))
+                if existing:
+                    conn.execute("""
+                        UPDATE engagement_metrics SET total_sessions = ?, completed_sessions = ?,
+                            avg_response_quality = ?, drop_off_rate = ?, recorded_at = ?
+                        WHERE id = ?
+                    """, (total, completed, round(sd["avg_engagement"] or 0, 3), drop_off,
+                          datetime.now().isoformat(), dict(existing)["id"]))
+                else:
+                    conn.execute("""
+                        INSERT INTO engagement_metrics (survey_id, channel, total_sessions, completed_sessions,
+                            avg_response_quality, drop_off_rate)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (survey_id, sd["channel"], total, completed,
+                          round(sd["avg_engagement"] or 0, 3), drop_off))
 
-        # Get conversation history for transcript report
-        history = conn.execute("""
-            SELECT role, message FROM conversation_history
-            WHERE session_id = ? ORDER BY created_at
-        """, (session_id,)).fetchall() if session_id else []
+            # Get conversation history for transcript report
+            history = conn.execute("""
+                SELECT role, message FROM conversation_history
+                WHERE session_id = ? ORDER BY created_at
+            """, (session_id,)).fetchall() if session_id else []
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
         # Trigger Intelligence Loop for interview completion
         conversation_history = [dict(h) for h in history] if history else None
@@ -292,12 +297,14 @@ def handle_sentiment_shift(event: Event):
 
     try:
         conn = get_db()
-        conn.execute("""
-            INSERT INTO notifications (survey_id, type, title, message, severity)
-            VALUES (?, 'alert', 'Sentiment Shift Detected', ?, 'high')
-        """, (survey_id, shift_info))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("""
+                INSERT INTO notifications (survey_id, type, title, message, severity)
+                VALUES (?, 'alert', 'Sentiment Shift Detected', ?, 'high')
+            """, (survey_id, shift_info))
+            conn.commit()
+        finally:
+            conn.close()
     except Exception as e:
         print(f"[EventHandler] Sentiment shift handler failed: {e}")
 
@@ -308,35 +315,36 @@ def _incremental_insight_update(survey_id: int, new_response_text: str):
     Only calculates the delta from the new response.
     """
     conn = get_db()
+    try:
+        # Get current insight state
+        current_insights = conn.execute(
+            "SELECT id, title, feature_area, frequency, sentiment FROM insights WHERE survey_id = ?",
+            (survey_id,)
+        ).fetchall()
 
-    # Get current insight state
-    current_insights = conn.execute(
-        "SELECT id, title, feature_area, frequency, sentiment FROM insights WHERE survey_id = ?",
-        (survey_id,)
-    ).fetchall()
+        # Check if the new response matches any existing insight pattern
+        response_lower = new_response_text.lower()
 
-    # Check if the new response matches any existing insight pattern
-    response_lower = new_response_text.lower()
+        for insight in current_insights:
+            insight_dict = dict(insight)
+            # Simple keyword matching for incremental update
+            title_words = insight_dict["title"].lower().split()
+            feature = (insight_dict.get("feature_area") or "").lower()
 
-    for insight in current_insights:
-        insight_dict = dict(insight)
-        # Simple keyword matching for incremental update
-        title_words = insight_dict["title"].lower().split()
-        feature = (insight_dict.get("feature_area") or "").lower()
+            match_score = sum(1 for w in title_words if w in response_lower and len(w) > 3)
+            if feature and feature in response_lower:
+                match_score += 2
 
-        match_score = sum(1 for w in title_words if w in response_lower and len(w) > 3)
-        if feature and feature in response_lower:
-            match_score += 2
+            if match_score >= 2:
+                # Increment frequency for matching insight
+                conn.execute(
+                    "UPDATE insights SET frequency = frequency + 1 WHERE id = ?",
+                    (insight_dict["id"],)
+                )
 
-        if match_score >= 2:
-            # Increment frequency for matching insight
-            conn.execute(
-                "UPDATE insights SET frequency = frequency + 1 WHERE id = ?",
-                (insight_dict["id"],)
-            )
-
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def handle_insight_discovered(event: Event):

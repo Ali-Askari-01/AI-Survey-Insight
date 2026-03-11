@@ -154,70 +154,77 @@ def get_survey(survey_id: int):
 @router.post("/questions")
 def create_question(question: QuestionCreate, current_user: dict = Depends(get_current_user)):
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level, audience_tag)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (question.survey_id, question.question_text, question.question_type, question.options,
-          question.order_index, 1 if question.is_required else 0, question.conditional_logic,
-          question.follow_up_seeds, question.tone, question.depth_level, question.audience_tag))
-    conn.commit()
-    q_id = cursor.lastrowid
-    conn.close()
-    return {"id": q_id, "message": "Question created"}
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level, audience_tag)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (question.survey_id, question.question_text, question.question_type, question.options,
+              question.order_index, 1 if question.is_required else 0, question.conditional_logic,
+              question.follow_up_seeds, question.tone, question.depth_level, question.audience_tag))
+        conn.commit()
+        q_id = cursor.lastrowid
+        return {"id": q_id, "message": "Question created"}
+    finally:
+        conn.close()
 
 
 @router.put("/questions/{question_id}")
 def update_question(question_id: int, update: QuestionUpdate, current_user: dict = Depends(get_current_user)):
     conn = get_db()
-    q = conn.execute("SELECT * FROM questions WHERE id = ?", (question_id,)).fetchone()
-    if not q:
+    try:
+        q = conn.execute("SELECT * FROM questions WHERE id = ?", (question_id,)).fetchone()
+        if not q:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        updates = {}
+        if update.question_text is not None:
+            updates["question_text"] = update.question_text
+        if update.question_type is not None:
+            updates["question_type"] = update.question_type
+        if update.options is not None:
+            updates["options"] = update.options
+        if update.order_index is not None:
+            updates["order_index"] = update.order_index
+        if update.is_required is not None:
+            updates["is_required"] = 1 if update.is_required else 0
+        if update.conditional_logic is not None:
+            updates["conditional_logic"] = update.conditional_logic
+        if update.tone is not None:
+            updates["tone"] = update.tone
+
+        if updates:
+            set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+            values = list(updates.values()) + [question_id]
+            conn.execute(f"UPDATE questions SET {set_clause} WHERE id = ?", values)
+            conn.commit()
+        return {"message": "Question updated"}
+    finally:
         conn.close()
-        raise HTTPException(status_code=404, detail="Question not found")
-
-    updates = {}
-    if update.question_text is not None:
-        updates["question_text"] = update.question_text
-    if update.question_type is not None:
-        updates["question_type"] = update.question_type
-    if update.options is not None:
-        updates["options"] = update.options
-    if update.order_index is not None:
-        updates["order_index"] = update.order_index
-    if update.is_required is not None:
-        updates["is_required"] = 1 if update.is_required else 0
-    if update.conditional_logic is not None:
-        updates["conditional_logic"] = update.conditional_logic
-    if update.tone is not None:
-        updates["tone"] = update.tone
-
-    if updates:
-        set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
-        values = list(updates.values()) + [question_id]
-        conn.execute(f"UPDATE questions SET {set_clause} WHERE id = ?", values)
-        conn.commit()
-    conn.close()
-    return {"message": "Question updated"}
 
 
 @router.delete("/questions/{question_id}")
 def delete_question(question_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_db()
-    conn.execute("DELETE FROM questions WHERE id = ?", (question_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Question deleted"}
+    try:
+        conn.execute("DELETE FROM questions WHERE id = ?", (question_id,))
+        conn.commit()
+        return {"message": "Question deleted"}
+    finally:
+        conn.close()
 
 
 @router.post("/questions/reorder")
 def reorder_questions(data: dict, current_user: dict = Depends(get_current_user)):
     """Reorder questions by providing list of {id, order_index}."""
     conn = get_db()
-    for item in data.get("orders", []):
-        conn.execute("UPDATE questions SET order_index = ? WHERE id = ?", (item["order_index"], item["id"]))
-    conn.commit()
-    conn.close()
-    return {"message": "Questions reordered"}
+    try:
+        for item in data.get("orders", []):
+            conn.execute("UPDATE questions SET order_index = ? WHERE id = ?", (item["order_index"], item["id"]))
+        conn.commit()
+        return {"message": "Questions reordered"}
+    finally:
+        conn.close()
 
 
 @router.post("/questions/ai-generate")
@@ -278,19 +285,21 @@ def get_conversation_flow(survey_id: int):
 @router.post("/{survey_id}/flow")
 def create_flow_node(survey_id: int, data: dict):
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO conversation_flow (survey_id, node_id, topic, parent_node_id, question_id, condition_type, condition_value, depth_level, priority_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        survey_id, data.get("node_id", str(uuid.uuid4())[:8]),
-        data.get("topic"), data.get("parent_node_id"), data.get("question_id"),
-        data.get("condition_type"), data.get("condition_value"),
-        data.get("depth_level", 1), data.get("priority_score", 0)
-    ))
-    conn.commit()
-    conn.close()
-    return {"message": "Flow node created"}
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO conversation_flow (survey_id, node_id, topic, parent_node_id, question_id, condition_type, condition_value, depth_level, priority_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            survey_id, data.get("node_id", str(uuid.uuid4())[:8]),
+            data.get("topic"), data.get("parent_node_id"), data.get("question_id"),
+            data.get("condition_type"), data.get("condition_value"),
+            data.get("depth_level", 1), data.get("priority_score", 0)
+        ))
+        conn.commit()
+        return {"message": "Flow node created"}
+    finally:
+        conn.close()
 
 
 @router.post("/generate-consent")

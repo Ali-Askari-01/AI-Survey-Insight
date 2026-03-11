@@ -49,42 +49,50 @@ def get_unread_count():
 @router.post("/")
 def create_notification(notif: NotificationCreate):
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO notifications (survey_id, type, title, message, severity)
-        VALUES (?, ?, ?, ?, ?)
-    """, (notif.survey_id, notif.type, notif.title, notif.message, notif.severity))
-    conn.commit()
-    notif_id = cursor.lastrowid
-    conn.close()
-    return {"id": notif_id, "message": "Notification created"}
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO notifications (survey_id, type, title, message, severity)
+            VALUES (?, ?, ?, ?, ?)
+        """, (notif.survey_id, notif.type, notif.title, notif.message, notif.severity))
+        conn.commit()
+        notif_id = cursor.lastrowid
+        return {"id": notif_id, "message": "Notification created"}
+    finally:
+        conn.close()
 
 
 @router.put("/{notif_id}/read")
 def mark_read(notif_id: int):
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", (notif_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Marked as read"}
+    try:
+        conn.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", (notif_id,))
+        conn.commit()
+        return {"message": "Marked as read"}
+    finally:
+        conn.close()
 
 
 @router.put("/read-all")
 def mark_all_read():
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read = 1")
-    conn.commit()
-    conn.close()
-    return {"message": "All marked as read"}
+    try:
+        conn.execute("UPDATE notifications SET is_read = 1")
+        conn.commit()
+        return {"message": "All marked as read"}
+    finally:
+        conn.close()
 
 
 @router.delete("/{notif_id}")
 def delete_notification(notif_id: int):
     conn = get_db()
-    conn.execute("DELETE FROM notifications WHERE id = ?", (notif_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Notification deleted"}
+    try:
+        conn.execute("DELETE FROM notifications WHERE id = ?", (notif_id,))
+        conn.commit()
+        return {"message": "Notification deleted"}
+    finally:
+        conn.close()
 
 
 # ═══════════════════════════════════════════════════

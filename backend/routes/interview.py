@@ -515,101 +515,101 @@ def get_chat_history(session_id: str):
 def complete_interview(session_id: str):
     """Mark interview as complete and generate transcript report."""
     conn = get_db()
-    session = conn.execute("SELECT * FROM interview_sessions WHERE session_id = ?", (session_id,)).fetchone()
-    if not session:
+    try:
+        session = conn.execute("SELECT * FROM interview_sessions WHERE session_id = ?", (session_id,)).fetchone()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        history = conn.execute(
+            "SELECT * FROM conversation_history WHERE session_id = ? ORDER BY created_at",
+            (session_id,)
+        ).fetchall()
+        responses = conn.execute(
+            "SELECT r.*, q.question_text FROM responses r LEFT JOIN questions q ON r.question_id = q.id WHERE r.session_id = ? ORDER BY r.created_at",
+            (session_id,)
+        ).fetchall()
+
+        session_dict = dict(session)
+        session_data = {
+            "session": session_dict,
+            "history": [dict(h) for h in history],
+            "responses": [dict(r) for r in responses]
+        }
+
+        # Generate AI transcript report
+        report = AIService.generate_interview_transcript_report(session_data)
+
+        # ── Persist transcript to full_transcripts table ──
+        transcript_entries = []
+        word_count = 0
+        for h in history:
+            entry = dict(h)
+            transcript_entries.append({
+                "role": entry["role"],
+                "message": entry["message"],
+                "type": entry.get("message_type", "text"),
+                "timestamp": entry.get("created_at"),
+            })
+            word_count += len(entry["message"].split())
+
+        sentiments = [dict(r)["sentiment_score"] for r in responses if dict(r).get("sentiment_score") is not None]
+        avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else None
+
+        transcript_json = json.dumps(transcript_entries, indent=2)
+        ai_report_json = json.dumps(report, indent=2) if report else None
+        key_topics = None
+        if report and "transcript_summary" in report:
+            topics = report["transcript_summary"].get("key_topics_discussed", [])
+            key_topics = json.dumps(topics) if topics else None
+
+        # Get respondent_id from survey_respondents if available
+        sr = conn.execute(
+            "SELECT respondent_id FROM survey_respondents WHERE session_id = ?",
+            (session_id,)
+        ).fetchone()
+        respondent_id = dict(sr)["respondent_id"] if sr else None
+
+        existing_transcript = conn.execute("SELECT id FROM full_transcripts WHERE session_id = ?", (session_id,)).fetchone()
+        if existing_transcript:
+            conn.execute("""
+                UPDATE full_transcripts SET transcript_json = ?, ai_report_json = ?,
+                word_count = ?, sentiment_overall = ?, key_topics = ?, updated_at = ?
+                WHERE session_id = ?
+            """, (transcript_json, ai_report_json, word_count, avg_sentiment, key_topics,
+                  datetime.now().isoformat(), session_id))
+        else:
+            conn.execute("""
+                INSERT INTO full_transcripts (session_id, survey_id, respondent_id, transcript_json, ai_report_json,
+                                              word_count, sentiment_overall, key_topics)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (session_id, session_dict["survey_id"], respondent_id, transcript_json, ai_report_json,
+                  word_count, avg_sentiment, key_topics))
+
+        # Mark session complete (only if not already completed)
+        if session_dict.get("status") != "completed":
+            conn.execute(
+                "UPDATE interview_sessions SET status = 'completed', completed_at = ? WHERE session_id = ?",
+                (datetime.now().isoformat(), session_id)
+            )
+
+        conn.commit()
+
+        # ── ARCHITECTURE: Publish event for background processing (only if not already fired) ──
+        if session_dict.get("status") != "completed":
+            event_bus.publish(Event(
+                EventType.INTERVIEW_COMPLETED,
+                {"session_id": session_id, "survey_id": session_dict["survey_id"]},
+                source="interview_route"
+            ))
+
+        return {
+            "session_id": session_id,
+            "report": report,
+            "history": [dict(h) for h in history],
+            "responses": [dict(r) for r in responses]
+        }
+    finally:
         conn.close()
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    history = conn.execute(
-        "SELECT * FROM conversation_history WHERE session_id = ? ORDER BY created_at",
-        (session_id,)
-    ).fetchall()
-    responses = conn.execute(
-        "SELECT r.*, q.question_text FROM responses r LEFT JOIN questions q ON r.question_id = q.id WHERE r.session_id = ? ORDER BY r.created_at",
-        (session_id,)
-    ).fetchall()
-
-    session_dict = dict(session)
-    session_data = {
-        "session": session_dict,
-        "history": [dict(h) for h in history],
-        "responses": [dict(r) for r in responses]
-    }
-
-    # Generate AI transcript report
-    report = AIService.generate_interview_transcript_report(session_data)
-
-    # ── Persist transcript to full_transcripts table ──
-    transcript_entries = []
-    word_count = 0
-    for h in history:
-        entry = dict(h)
-        transcript_entries.append({
-            "role": entry["role"],
-            "message": entry["message"],
-            "type": entry.get("message_type", "text"),
-            "timestamp": entry.get("created_at"),
-        })
-        word_count += len(entry["message"].split())
-
-    sentiments = [dict(r)["sentiment_score"] for r in responses if dict(r).get("sentiment_score") is not None]
-    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else None
-
-    transcript_json = json.dumps(transcript_entries, indent=2)
-    ai_report_json = json.dumps(report, indent=2) if report else None
-    key_topics = None
-    if report and "transcript_summary" in report:
-        topics = report["transcript_summary"].get("key_topics_discussed", [])
-        key_topics = json.dumps(topics) if topics else None
-
-    # Get respondent_id from survey_respondents if available
-    sr = conn.execute(
-        "SELECT respondent_id FROM survey_respondents WHERE session_id = ?",
-        (session_id,)
-    ).fetchone()
-    respondent_id = dict(sr)["respondent_id"] if sr else None
-
-    existing_transcript = conn.execute("SELECT id FROM full_transcripts WHERE session_id = ?", (session_id,)).fetchone()
-    if existing_transcript:
-        conn.execute("""
-            UPDATE full_transcripts SET transcript_json = ?, ai_report_json = ?,
-            word_count = ?, sentiment_overall = ?, key_topics = ?, updated_at = ?
-            WHERE session_id = ?
-        """, (transcript_json, ai_report_json, word_count, avg_sentiment, key_topics,
-              datetime.now().isoformat(), session_id))
-    else:
-        conn.execute("""
-            INSERT INTO full_transcripts (session_id, survey_id, respondent_id, transcript_json, ai_report_json,
-                                          word_count, sentiment_overall, key_topics)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (session_id, session_dict["survey_id"], respondent_id, transcript_json, ai_report_json,
-              word_count, avg_sentiment, key_topics))
-
-    # Mark session complete (only if not already completed)
-    if session_dict.get("status") != "completed":
-        conn.execute(
-            "UPDATE interview_sessions SET status = 'completed', completed_at = ? WHERE session_id = ?",
-            (datetime.now().isoformat(), session_id)
-        )
-
-    conn.commit()
-
-    # ── ARCHITECTURE: Publish event for background processing (only if not already fired) ──
-    if session_dict.get("status") != "completed":
-        event_bus.publish(Event(
-            EventType.INTERVIEW_COMPLETED,
-            {"session_id": session_id, "survey_id": session_dict["survey_id"]},
-            source="interview_route"
-        ))
-
-    conn.close()
-
-    return {
-        "session_id": session_id,
-        "report": report,
-        "history": [dict(h) for h in history],
-        "responses": [dict(r) for r in responses]
-    }
 
 
 # ── Engagement Metrics ──
