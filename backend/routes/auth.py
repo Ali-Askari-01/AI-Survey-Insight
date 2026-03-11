@@ -244,6 +244,25 @@ def google_login(request: Request):
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
 
 
+@router.get("/google/debug")
+def google_debug(request: Request):
+    """Debug endpoint to check OAuth configuration — remove in production."""
+    if GOOGLE_REDIRECT_URI:
+        redirect_uri = GOOGLE_REDIRECT_URI
+    else:
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("host", "localhost:8000")
+        redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    return {
+        "configured_redirect_uri": GOOGLE_REDIRECT_URI,
+        "actual_redirect_uri": redirect_uri,
+        "client_id_set": bool(GOOGLE_CLIENT_ID),
+        "client_secret_set": bool(GOOGLE_CLIENT_SECRET),
+        "request_host": request.headers.get("host"),
+        "x_forwarded_proto": request.headers.get("x-forwarded-proto"),
+    }
+
+
 @router.get("/google/callback")
 def google_callback(request: Request, code: str = None, error: str = None, state: str = None):
     """Handle the OAuth2 callback from Google."""
