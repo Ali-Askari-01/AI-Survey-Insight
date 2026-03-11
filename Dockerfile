@@ -1,10 +1,6 @@
 # ═══════════════════════════════════════════════════
 # Dockerfile — AI Survey Software Backend
-# Infrastructure & Scalability Architecture (Section 5)
-# ═══════════════════════════════════════════════════
-# Production: Gunicorn + Uvicorn Workers
-#   gunicorn -k uvicorn.workers.UvicornWorker main:app
-# Workers allow: ✅ parallel requests ✅ concurrency ✅ stability
+# Optimized for Railway Deployment
 # ═══════════════════════════════════════════════════
 FROM python:3.12-slim
 
@@ -15,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Copy requirements and install (cached layer — changes rarely)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -24,23 +20,20 @@ COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY gunicorn.conf.py .
 
-# Create data and storage directories
-RUN mkdir -p /app/data /app/data/storage /app/data/backups
+# Create data directories (Railway volume mounts over /app/data if configured)
+RUN mkdir -p /app/data /app/data/storage /app/data/backups /app/logs
 
-# Environment variables
+# Environment variables — Railway injects secrets at runtime
 ENV PYTHONUNBUFFERED=1
 ENV APP_ENV=production
-ENV GEMINI_API_KEY=""
-ENV ASSEMBLYAI_API_KEY=""
-ENV JWT_SECRET=""
-ENV WORKERS=4
+ENV WORKERS=2
 ENV PORT=8000
 
 # Expose port (Railway overrides via $PORT)
 EXPOSE ${PORT}
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Production: Gunicorn with Uvicorn workers

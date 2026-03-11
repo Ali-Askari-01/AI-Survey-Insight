@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+venv
+dist
+build
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Data & Logs (Railway uses volumes)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/
+logs/
+
+# Docker
+docker-compose.yml
+Dockerfile.worker
+
+# Docs & Tests
+*.md
+test_*.py
+db_check*.py
+debug_*.py
+validate.py
+verify_fixes.py
+quick_test.py
+Requirements/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Nginx (not needed in container)
+nginx/

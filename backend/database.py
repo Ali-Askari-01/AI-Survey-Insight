@@ -9,7 +9,10 @@ import json
 from datetime import datetime
 from contextlib import contextmanager
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "survey_engine.db")
+# Railway volumes: set DATA_DIR env var to the mount path (e.g. /data)
+# Falls back to ../data relative to this file (works locally and in Docker)
+_data_dir = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data"))
+DB_PATH = os.path.join(_data_dir, "survey_engine.db")
 
 # Track if WAL mode has been set this process
 _wal_initialized = False

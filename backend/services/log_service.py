@@ -15,7 +15,7 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
 # Log directory
-LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+LOG_DIR = os.environ.get("LOG_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
 
 # Configuration
 MAX_LOG_SIZE = int(os.environ.get("LOG_MAX_SIZE_MB", "10")) * 1024 * 1024  # Default 10 MB

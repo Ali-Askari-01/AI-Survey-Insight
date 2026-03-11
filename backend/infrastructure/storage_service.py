@@ -128,10 +128,10 @@ class StorageConfig:
 
     def __post_init__(self):
         if not self.base_path:
-            self.base_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                "data", "storage"
-            )
+            data_dir = os.environ.get("DATA_DIR", os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+            ))
+            self.base_path = os.path.join(data_dir, "storage")
 
 
 # ═══════════════════════════════════════════════════
