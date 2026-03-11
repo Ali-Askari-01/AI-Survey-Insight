@@ -192,6 +192,9 @@ def submit_response(response: ResponseCreate):
             sentiment["confidence"], quality["quality_score"]
         ))
 
+        # Capture response_id right after responses INSERT (before other inserts change lastrowid)
+        response_id = cursor.lastrowid
+
         # Store in conversation history
         cursor.execute("""
             INSERT INTO conversation_history (session_id, role, message, message_type, metadata)
@@ -254,7 +257,6 @@ def submit_response(response: ResponseCreate):
 
         # ── Response Segmentation ──
         segments = AIService.segment_response(response.response_text)
-        response_id = cursor.lastrowid
         for idx, seg in enumerate(segments):
             cursor.execute("""
                 INSERT INTO response_segments (response_id, session_id, segment_text, topic, sentiment_label, sentiment_score, emotion, confidence, order_index)
@@ -362,6 +364,7 @@ def chat_message(msg: ChatMessage):
         quality = {"quality_score": q_score, "clarity": round(clarity, 2), "depth": round(depth, 2), "relevance": round(relevance, 2), "word_count": wc, "needs_follow_up": q_score < 0.5}
 
         # Store response record (skip for __START__ signal to avoid polluting data)
+        response_id = None
         if not is_start_signal:
             cursor.execute("""
                 INSERT INTO responses (session_id, response_text, response_type, sentiment_score, emotion, intent, confidence, quality_score)
@@ -369,6 +372,7 @@ def chat_message(msg: ChatMessage):
             """, (msg.session_id, msg.message, msg.message_type,
                   sentiment["sentiment_score"], sentiment["emotion"], follow_up["intent"],
                   sentiment["confidence"], quality["quality_score"]))
+            response_id = cursor.lastrowid
 
         # ── COMMIT user data FIRST so it's not lost if Gemini fails ──
         conn.commit()
@@ -429,9 +433,6 @@ def chat_message(msg: ChatMessage):
             INSERT INTO conversation_history (session_id, role, message, message_type, metadata)
             VALUES (?, 'ai', ?, 'text', ?)
         """, (msg.session_id, ai_response, json.dumps({"sentiment": sentiment})))
-
-        # ── Extract semantic memory from chat message (every 3rd message to save Gemini quota) ──
-        response_id = cursor.lastrowid
         response_count = conn.execute("SELECT COUNT(*) as c FROM responses WHERE session_id = ?", (msg.session_id,)).fetchone()["c"]
         if response_count > 0 and response_count % 3 == 0:
             try:
@@ -479,14 +480,10 @@ def chat_message(msg: ChatMessage):
         )
 
         if interview_complete:
-            conn.execute("UPDATE interview_sessions SET status = 'completed', completed_at = ? WHERE session_id = ?",
+            conn.execute("UPDATE interview_sessions SET status = 'completing', completed_at = ? WHERE session_id = ?",
                          (datetime.now().isoformat(), msg.session_id))
-            # ── ARCHITECTURE: Publish interview completion event ──
-            event_bus.publish(Event(
-                EventType.INTERVIEW_COMPLETED,
-                {"session_id": msg.session_id, "survey_id": dict(session)["survey_id"]},
-                source="chat_route"
-            ))
+            # Note: INTERVIEW_COMPLETED event will fire when complete_interview() is called by the frontend
+            # This prevents duplicate event processing
 
         conn.commit()
 
@@ -532,8 +529,9 @@ def complete_interview(session_id: str):
         (session_id,)
     ).fetchall()
 
+    session_dict = dict(session)
     session_data = {
-        "session": dict(session),
+        "session": session_dict,
         "history": [dict(h) for h in history],
         "responses": [dict(r) for r in responses]
     }
@@ -541,19 +539,68 @@ def complete_interview(session_id: str):
     # Generate AI transcript report
     report = AIService.generate_interview_transcript_report(session_data)
 
-    # Mark session complete
-    conn.execute(
-        "UPDATE interview_sessions SET status = 'completed', completed_at = ? WHERE session_id = ?",
-        (datetime.now().isoformat(), session_id)
-    )
+    # ── Persist transcript to full_transcripts table ──
+    transcript_entries = []
+    word_count = 0
+    for h in history:
+        entry = dict(h)
+        transcript_entries.append({
+            "role": entry["role"],
+            "message": entry["message"],
+            "type": entry.get("message_type", "text"),
+            "timestamp": entry.get("created_at"),
+        })
+        word_count += len(entry["message"].split())
+
+    sentiments = [dict(r)["sentiment_score"] for r in responses if dict(r).get("sentiment_score") is not None]
+    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else None
+
+    transcript_json = json.dumps(transcript_entries, indent=2)
+    ai_report_json = json.dumps(report, indent=2) if report else None
+    key_topics = None
+    if report and "transcript_summary" in report:
+        topics = report["transcript_summary"].get("key_topics_discussed", [])
+        key_topics = json.dumps(topics) if topics else None
+
+    # Get respondent_id from survey_respondents if available
+    sr = conn.execute(
+        "SELECT respondent_id FROM survey_respondents WHERE session_id = ?",
+        (session_id,)
+    ).fetchone()
+    respondent_id = dict(sr)["respondent_id"] if sr else None
+
+    existing_transcript = conn.execute("SELECT id FROM full_transcripts WHERE session_id = ?", (session_id,)).fetchone()
+    if existing_transcript:
+        conn.execute("""
+            UPDATE full_transcripts SET transcript_json = ?, ai_report_json = ?,
+            word_count = ?, sentiment_overall = ?, key_topics = ?, updated_at = ?
+            WHERE session_id = ?
+        """, (transcript_json, ai_report_json, word_count, avg_sentiment, key_topics,
+              datetime.now().isoformat(), session_id))
+    else:
+        conn.execute("""
+            INSERT INTO full_transcripts (session_id, survey_id, respondent_id, transcript_json, ai_report_json,
+                                          word_count, sentiment_overall, key_topics)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (session_id, session_dict["survey_id"], respondent_id, transcript_json, ai_report_json,
+              word_count, avg_sentiment, key_topics))
+
+    # Mark session complete (only if not already completed)
+    if session_dict.get("status") != "completed":
+        conn.execute(
+            "UPDATE interview_sessions SET status = 'completed', completed_at = ? WHERE session_id = ?",
+            (datetime.now().isoformat(), session_id)
+        )
+
     conn.commit()
 
-    # ── ARCHITECTURE: Publish event for background processing ──
-    event_bus.publish(Event(
-        EventType.INTERVIEW_COMPLETED,
-        {"session_id": session_id, "survey_id": dict(session)["survey_id"]},
-        source="interview_route"
-    ))
+    # ── ARCHITECTURE: Publish event for background processing (only if not already fired) ──
+    if session_dict.get("status") != "completed":
+        event_bus.publish(Event(
+            EventType.INTERVIEW_COMPLETED,
+            {"session_id": session_id, "survey_id": session_dict["survey_id"]},
+            source="interview_route"
+        ))
 
     conn.close()
 
