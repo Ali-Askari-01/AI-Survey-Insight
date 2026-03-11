@@ -17,7 +17,8 @@ import os
 import multiprocessing
 
 # ─── Server Socket ───
-bind = "0.0.0.0:8000"
+# Railway sets PORT dynamically; fall back to 8000 for local development
+bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
 backlog = 2048
 
 # ─── Worker Processes ───

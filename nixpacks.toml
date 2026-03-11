@@ -1,0 +1,16 @@
+# Nixpacks config (alternative to Dockerfile — Railway auto-detects)
+# This file is used ONLY if railway.toml builder is set to NIXPACKS
+# Current setup uses Dockerfile — this is a fallback option
+
+[phases.setup]
+nixPkgs = ["python312", "gcc"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "gunicorn -c gunicorn.conf.py backend.main:app"
+
+[variables]
+PYTHONUNBUFFERED = "1"
+APP_ENV = "production"

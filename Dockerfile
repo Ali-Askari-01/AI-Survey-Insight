@@ -34,13 +34,14 @@ ENV GEMINI_API_KEY=""
 ENV ASSEMBLYAI_API_KEY=""
 ENV JWT_SECRET=""
 ENV WORKERS=4
+ENV PORT=8000
 
-# Expose port
-EXPOSE 8000
+# Expose port (Railway overrides via $PORT)
+EXPOSE ${PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Production: Gunicorn with Uvicorn workers
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "backend.main:app"]
