@@ -224,10 +224,13 @@ def google_login(request: Request):
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=501, detail="Google Sign-In is not configured")
 
-    # Build redirect URI dynamically from current request host
-    scheme = request.headers.get("x-forwarded-proto", "http")
-    host = request.headers.get("host", "localhost:8000")
-    redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    # Use configured redirect URI if set, otherwise build dynamically
+    if GOOGLE_REDIRECT_URI:
+        redirect_uri = GOOGLE_REDIRECT_URI
+    else:
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("host", "localhost:8000")
+        redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
 
     params = urllib.parse.urlencode({
         "client_id": GOOGLE_CLIENT_ID,
@@ -253,8 +256,10 @@ def google_callback(request: Request, code: str = None, error: str = None, state
     # Use the redirect_uri from state parameter, or build from request
     if state:
         redirect_uri = state
+    elif GOOGLE_REDIRECT_URI:
+        redirect_uri = GOOGLE_REDIRECT_URI
     else:
-        scheme = request.headers.get("x-forwarded-proto", "http")
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
         host = request.headers.get("host", "localhost:8000")
         redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
 
