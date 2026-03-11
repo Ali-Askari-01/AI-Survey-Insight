@@ -12,8 +12,16 @@ from datetime import datetime
 from google import genai
 from ..config import GEMINI_API_KEY, GEMINI_MODEL
 
-# ── Initialise Gemini client ──
-client = genai.Client(api_key=GEMINI_API_KEY)
+# ── Lazy Gemini client (avoids crash if API key is missing at startup) ──
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        if not GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY is not set. Add it to your environment variables.")
+        _client = genai.Client(api_key=GEMINI_API_KEY)
+    return _client
 
 # Fallback models to try if primary is rate-limited (each has separate quota)
 FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-3-flash-preview"]
@@ -29,7 +37,7 @@ def _ask_gemini(prompt: str, max_tokens: int = 1024, retries: int = 3, feature_n
         for attempt in range(retries):
             call_start = time.time()
             try:
-                response = client.models.generate_content(
+                response = _get_client().models.generate_content(
                     model=model,
                     contents=prompt,
                     config={
