@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="InsightAI — Multi-Channel AI Feedback & Insight Engine. Turn conversations into clarity with AI-powered surveys, chat interviews, and real-time analytics.">
+    <meta name="description" content="InsightAI — Turn conversations into clarity with AI-powered surveys, adaptive chat interviews, and real-time insight generation.">
     <title>InsightAI — AI-Powered Survey & Insight Engine</title>
     
-    <!-- Fonts -->
+    <!-- Fonts: Playfair Display (display), DM Sans (body), JetBrains Mono (data) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
-    <!-- Icons -->
+    <!-- Icons: Lucide via CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <!-- Stylesheet -->
     <link rel="stylesheet" href="/css/landing.css">
 </head>
 <body class="landing-page">
-    <!-- Animated Background -->
+    <!-- Animated Background Orbs -->
     <div class="landing-bg">
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
@@ -25,73 +26,92 @@
     </div>
     <div class="landing-grid"></div>
 
-    <!-- Navigation -->
-    <nav class="landing-nav" id="landing-nav">
+    <!-- ═══ Navigation ═══ -->
+    <nav class="landing-nav" id="landing-nav" role="navigation" aria-label="Main navigation">
         <a href="/" class="landing-logo">
-            <i class="fas fa-brain"></i>
+            <i class="fas fa-sparkles"></i>
             InsightAI
         </a>
         <div class="landing-nav-links">
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#testimonials">Testimonials</a>
-            <a href="/app" class="btn-cta-sm">Get Started <i class="fas fa-arrow-right"></i></a>
+            <a href="/app" class="btn-cta-sm">Start Free <i class="fas fa-arrow-right" style="font-size:0.8rem"></i></a>
         </div>
     </nav>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- HERO SECTION                               -->
-    <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══ HERO SECTION ═══ -->
     <section class="landing-hero">
         <div class="hero-content">
             <div class="hero-badge">
                 <span class="pulse-dot"></span>
-                Powered by Google Gemini AI
+                <span class="badge-text">✦ Powered by Google Gemini AI</span>
             </div>
             <h1 class="hero-title">
-                Turn Conversations Into <span class="gradient-text">Clarity</span>
+                Turn Conversations<br>Into <span class="gradient-text">Clarity</span>
             </h1>
             <p class="hero-subtitle">
-                The AI-powered research engine that designs surveys, conducts adaptive interviews, 
-                and delivers real-time insights — all through natural conversation. Stop guessing, 
-                start understanding.
+                The AI research engine that designs your surveys, conducts adaptive 
+                interviews, and delivers insights — all through natural conversation.
             </p>
             <div class="hero-cta-group">
                 <a href="/app" class="btn-cta btn-cta-primary">
-                    <i class="fas fa-rocket"></i> Start Free
+                    Start for Free <i class="fas fa-arrow-right"></i>
                 </a>
-                <a href="#features" class="btn-cta btn-cta-secondary">
-                    <i class="fas fa-play-circle"></i> See How It Works
+                <a href="#how-it-works" class="btn-cta btn-cta-secondary">
+                    <i class="fas fa-play-circle"></i> Watch Demo
                 </a>
             </div>
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <div class="hero-stat-value">5+</div>
-                    <div class="hero-stat-label">AI Models</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">3</div>
-                    <div class="hero-stat-label">Collection Channels</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">Real-time</div>
-                    <div class="hero-stat-label">Theme Clustering</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">< 2min</div>
-                    <div class="hero-stat-label">Survey Setup</div>
+            <div class="hero-trust-row">
+                <span><i class="fas fa-lock"></i> No credit card</span>
+                <span><i class="fas fa-bolt"></i> 2-min setup</span>
+                <span><i class="fas fa-robot"></i> AI-powered</span>
+            </div>
+
+            <!-- Floating Chat Mockup -->
+            <div class="hero-mockup">
+                <div class="hero-mockup-card">
+                    <div class="mockup-header">
+                        <span class="mockup-dot" style="background:#EF4444"></span>
+                        <span class="mockup-dot" style="background:#F59E0B"></span>
+                        <span class="mockup-dot" style="background:#10B981"></span>
+                        <span style="margin-left:8px;font-size:0.8rem;color:#A3ADB8">AI Survey Designer</span>
+                    </div>
+                    <div class="mockup-msg mockup-msg-ai">What would you like to learn from your users today?</div>
+                    <div class="mockup-msg mockup-msg-user">I want to understand why users abandon onboarding</div>
+                    <div class="mockup-msg mockup-msg-ai">Great! I'll design adaptive interview questions that explore friction points, emotional reactions, and suggestions. Ready in seconds...</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- FEATURES SECTION                           -->
-    <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══ STATS BAR ═══ -->
+    <div class="stats-bar">
+        <div class="stats-bar-inner">
+            <div class="stat-item">
+                <div class="stat-number" data-target="10000">10,000+</div>
+                <div class="stat-desc">Surveys Created</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">3x</div>
+                <div class="stat-desc">Richer Responses</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">&lt; 2 min</div>
+                <div class="stat-desc">Setup Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">Real-time</div>
+                <div class="stat-desc">Analysis</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ FEATURES SECTION ═══ -->
     <section class="landing-section" id="features">
         <div class="section-header">
-            <div class="section-label">Features</div>
-            <h2 class="section-title">Everything You Need to Understand Your Users</h2>
+            <span class="section-eyebrow">Features</span>
+            <h2 class="section-title">Everything to understand your users</h2>
             <p class="section-subtitle">
                 From survey creation to executive reports — AI handles the heavy lifting so you can focus on building better products.
             </p>
@@ -99,62 +119,60 @@
 
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">
-                    <i class="fas fa-brain"></i>
+                <div class="feature-icon">
+                    <i class="fas fa-wand-magic-sparkles"></i>
                 </div>
                 <h3>AI Survey Designer</h3>
-                <p>Describe your research goal in plain English. Our AI asks clarifying questions, then generates perfectly aligned interview questions with smart follow-ups.</p>
+                <p>Describe your research goal in plain English. Our AI generates perfectly aligned interview questions with smart follow-ups.</p>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                <div class="feature-icon">
                     <i class="fas fa-comments"></i>
                 </div>
                 <h3>Adaptive Chat Interviews</h3>
-                <p>WhatsApp-style AI interviews that dynamically adapt to each respondent's answers. Every conversation is unique, relevant, and deeply insightful.</p>
+                <p>WhatsApp-style AI interviews that dynamically adapt to each respondent. Every conversation is unique and deeply insightful.</p>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                <div class="feature-icon">
                     <i class="fas fa-microphone"></i>
                 </div>
                 <h3>Voice Input</h3>
-                <p>Let respondents speak naturally. AssemblyAI transcription converts voice to text with sentiment analysis, highlights, and automatic processing.</p>
+                <p>Let respondents speak naturally. AI transcription converts voice to text with sentiment analysis and automatic processing.</p>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(236, 72, 153, 0.15); color: #f472b6;">
+                <div class="feature-icon">
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <h3>Real-Time Analytics</h3>
-                <p>Watch sentiment trends, theme clusters, and insights emerge in real-time as responses come in. No waiting for end-of-study analysis.</p>
+                <p>Watch sentiment trends, theme clusters, and insights emerge in real-time as responses flow in. No waiting.</p>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee;">
-                    <i class="fas fa-network-wired"></i>
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
                 </div>
                 <h3>Semantic Memory</h3>
-                <p>The AI remembers context across the entire interview, building a knowledge graph of entities and relationships to ask smarter questions.</p>
+                <p>The AI remembers context across the entire interview, building a knowledge graph to ask progressively smarter questions.</p>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">
-                    <i class="fas fa-file-alt"></i>
+                <div class="feature-icon">
+                    <i class="fas fa-file-lines"></i>
                 </div>
                 <h3>Executive Reports</h3>
-                <p>AI-generated executive summaries, sentiment breakdowns, pain point analysis, and actionable recommendations — ready for stakeholders.</p>
+                <p>AI-generated executive summaries, sentiment breakdowns, and actionable recommendations — ready for stakeholders.</p>
             </div>
         </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- HOW IT WORKS                               -->
-    <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══ HOW IT WORKS ═══ -->
     <section class="landing-section" id="how-it-works">
         <div class="section-header">
-            <div class="section-label">How It Works</div>
-            <h2 class="section-title">From Idea to Insight in 4 Steps</h2>
+            <span class="section-eyebrow">How It Works</span>
+            <h2 class="section-title">From idea to insight in 4 steps</h2>
             <p class="section-subtitle">
                 No survey design expertise needed. Just describe what you want to learn.
             </p>
@@ -164,17 +182,17 @@
             <div class="step-card">
                 <div class="step-number">1</div>
                 <h3>Describe Your Goal</h3>
-                <p>Tell the AI what you want to learn. It asks follow-up questions to deeply understand your research needs.</p>
+                <p>Tell the AI what you want to learn. It asks follow-up questions to understand your research needs.</p>
             </div>
             <div class="step-card">
                 <div class="step-number">2</div>
                 <h3>AI Generates Survey</h3>
-                <p>Targeted questions with follow-ups are created, aligned precisely to your research goal. Review and customize.</p>
+                <p>Targeted questions with follow-ups are created, aligned precisely to your research goal.</p>
             </div>
             <div class="step-card">
                 <div class="step-number">3</div>
                 <h3>Collect Responses</h3>
-                <p>Deploy via web form, AI chat, or voice input. The AI adapts in real-time to each respondent's unique answers.</p>
+                <p>Deploy via web form, AI chat, or voice input. The AI adapts in real-time to each respondent.</p>
             </div>
             <div class="step-card">
                 <div class="step-number">4</div>
@@ -184,13 +202,11 @@
         </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- TESTIMONIALS                               -->
-    <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══ TESTIMONIALS ═══ -->
     <section class="landing-section" id="testimonials">
         <div class="section-header">
-            <div class="section-label">Testimonials</div>
-            <h2 class="section-title">Loved by Product Teams</h2>
+            <span class="section-eyebrow">Testimonials</span>
+            <h2 class="section-title">Loved by product teams</h2>
             <p class="section-subtitle">See what researchers and product leaders are saying.</p>
         </div>
 
@@ -239,24 +255,29 @@
         </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- CTA BANNER                                 -->
-    <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══ CTA BANNER ═══ -->
     <div class="cta-banner">
         <h2>Ready to Understand Your Users?</h2>
         <p>Start your first AI-powered research in under 2 minutes. No credit card required.</p>
-        <a href="/app" class="btn-cta btn-cta-primary" style="font-size:1.1rem; padding: 18px 44px;">
+        <a href="/app" class="btn-cta btn-cta-primary" style="font-size:1.05rem; padding: 18px 44px;">
             <i class="fas fa-rocket"></i> Launch InsightAI Now
         </a>
     </div>
 
-    <!-- Footer -->
+    <!-- ═══ Footer ═══ -->
     <footer class="landing-footer">
-        <p>&copy; 2024 InsightAI. Built with <i class="fas fa-heart" style="color: #ef4444;"></i> and Google Gemini AI. | <a href="/app">Go to App</a></p>
+        <div>
+            <a href="/" class="landing-logo" style="font-size:1.2rem;margin-bottom:4px">
+                <i class="fas fa-sparkles"></i> InsightAI
+            </a>
+            <p style="margin-top:4px">Turn conversations into clarity.</p>
+        </div>
+        <p>&copy; 2024 InsightAI. Built with <i class="fas fa-heart" style="color: #EF4444;"></i> and Google Gemini AI. | <a href="/app">Go to App</a></p>
     </footer>
 
-    <!-- Scroll handler for nav -->
+    <!-- ═══ Scroll & Animation Scripts ═══ -->
     <script>
+        // Nav scroll effect
         window.addEventListener('scroll', () => {
             const nav = document.getElementById('landing-nav');
             if (window.scrollY > 50) {
@@ -275,6 +296,56 @@
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
+        });
+
+        // IntersectionObserver for scroll-triggered animations
+        const animateOnScroll = () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-in');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+            document.querySelectorAll('.feature-card, .step-card, .testimonial-card, .step-row').forEach(el => {
+                observer.observe(el);
+            });
+        };
+
+        // Counter animation for stats
+        const animateCounters = () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const el = entry.target;
+                        const target = parseInt(el.dataset.target);
+                        if (target) {
+                            let current = 0;
+                            const increment = target / 60;
+                            const timer = setInterval(() => {
+                                current += increment;
+                                if (current >= target) {
+                                    el.textContent = target.toLocaleString() + '+';
+                                    clearInterval(timer);
+                                } else {
+                                    el.textContent = Math.floor(current).toLocaleString() + '+';
+                                }
+                            }, 16);
+                        }
+                        observer.unobserve(el);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            document.querySelectorAll('[data-target]').forEach(el => observer.observe(el));
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            animateOnScroll();
+            animateCounters();
         });
     </script>
 </body>

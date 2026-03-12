@@ -5,67 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interview — InsightAI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-            --primary-50: #eef2ff; --primary-100: #e0e7ff; --primary-200: #c7d2fe;
-            --primary-500: #6366f1; --primary-600: #4f46e5; --primary-700: #4338ca;
+            --gold: #F5A623; --gold-hover: #E09000; --gold-light: rgba(245,166,35,0.08);
+            --gold-border: rgba(245,166,35,0.25); --aurora-violet: #8B5CF6;
+            --cream: #FAF7F2; --cream-dark: #F0EBE3; --card-bg: #FFFFFF;
             --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
-            --neutral-50: #fafafa; --neutral-100: #f5f5f5; --neutral-200: #e5e5e5;
-            --neutral-300: #d4d4d4; --neutral-500: #737373; --neutral-700: #404040;
-            --neutral-900: #171717; --border: #e5e5e5;
-            --border: #e5e5e5;
+            --text-dark: #1A1A2E; --text-body: #374151; --text-muted: #6B7280;
+            --border: #E5E0D8;
             --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
-            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+            --shadow-sm: 0 1px 3px rgba(26,26,46,0.06); --shadow-md: 0 4px 12px rgba(26,26,46,0.08);
+            --shadow-lg: 0 10px 30px rgba(26,26,46,0.1);
         }
         body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--cream);
             min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            padding: 20px; color: var(--neutral-900);
+            padding: 20px; color: var(--text-dark);
         }
         .container { width: 100%; max-width: 700px; }
 
         /* ─── Cards ─── */
         .card {
-            background: white; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
-            overflow: hidden; animation: slideUp 0.4s ease;
+            background: var(--card-bg); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+            overflow: hidden; animation: slideUp 0.4s ease; border: 1px solid var(--border);
         }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .card-header {
-            background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+            background: var(--text-dark);
             padding: 28px 32px; color: white; text-align: center;
         }
-        .card-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-        .card-header p { opacity: 0.85; font-size: 0.95rem; }
+        .card-header h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+        .card-header p { opacity: 0.7; font-size: 0.95rem; }
         .card-body { padding: 32px; }
 
         /* ─── Channel Cards ─── */
         .channel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
         .channel-card {
-            border: 2px solid var(--neutral-200); border-radius: var(--radius-lg);
+            border: 2px solid var(--border); border-radius: var(--radius-lg);
             padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.25s ease;
-            background: white;
+            background: var(--card-bg);
         }
-        .channel-card:hover { border-color: var(--primary-500); transform: translateY(-4px); box-shadow: var(--shadow-md); }
-        .channel-card.selected { border-color: var(--primary-500); background: var(--primary-50); }
+        .channel-card:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: var(--shadow-md); }
+        .channel-card.selected { border-color: var(--gold); background: var(--gold-light); }
         .channel-card .icon { font-size: 2.2rem; margin-bottom: 12px; }
         .channel-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
-        .channel-card p { font-size: 0.82rem; color: var(--neutral-500); line-height: 1.4; }
+        .channel-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
 
         /* ─── Form ─── */
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
         .form-group input {
-            width: 100%; padding: 12px 14px; border: 2px solid var(--neutral-200);
+            width: 100%; padding: 12px 14px; border: 2px solid var(--border);
             border-radius: var(--radius-md); font-size: 1rem; font-family: inherit;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s; background: var(--card-bg); color: var(--text-dark);
         }
-        .form-group input:focus { outline: none; border-color: var(--primary-500); }
+        .form-group input:focus { outline: none; border-color: var(--gold); }
         .error-text { color: var(--danger); font-size: 0.85rem; margin-top: 6px; display: none; }
 
         /* ─── Buttons ─── */
@@ -74,90 +74,92 @@
             border: none; border-radius: var(--radius-md); font-size: 1rem; font-weight: 600;
             cursor: pointer; transition: all 0.2s; font-family: inherit;
         }
-        .btn-primary { background: var(--primary-500); color: white; }
-        .btn-primary:hover { background: var(--primary-600); transform: translateY(-1px); }
-        .btn-primary:disabled { background: var(--neutral-300); cursor: not-allowed; transform: none; }
+        .btn-primary { background: var(--gold); color: var(--text-dark); }
+        .btn-primary:hover { background: var(--gold-hover); transform: translateY(-1px); }
+        .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
         .btn-block { width: 100%; justify-content: center; }
-        .btn-back { background: none; border: none; color: var(--neutral-500); cursor: pointer; font-size: 0.9rem; padding: 8px 0; }
-        .btn-back:hover { color: var(--primary-500); }
+        .btn-back { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 8px 0; }
+        .btn-back:hover { color: var(--gold); }
 
         /* ─── Progress Header (shared) ─── */
         .progress-header { display: flex; align-items: center; gap: 12px; padding: 0 32px 16px; }
         .progress-header .progress-bar { flex: 1; margin-bottom: 0; }
-        .progress-header .progress-label { font-size: 0.8rem; color: var(--neutral-500); white-space: nowrap; font-weight: 600; min-width: 80px; text-align: right; }
+        .progress-header .progress-label { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; font-weight: 600; min-width: 80px; text-align: right; }
 
         /* ─── Chat Interface ─── */
         .chat-container { display: flex; flex-direction: column; height: 70vh; max-height: 600px; }
-        .chat-progress-bar { height: 4px; background: var(--neutral-200); width: 100%; }
-        .chat-progress-bar-fill { height: 100%; background: var(--success); transition: width 0.5s ease; }
-        .chat-progress-info { display: flex; justify-content: space-between; padding: 6px 16px; font-size: 0.75rem; color: var(--neutral-500); background: var(--neutral-50); border-bottom: 1px solid var(--neutral-200); }
+        .chat-progress-bar { height: 4px; background: var(--cream-dark); width: 100%; }
+        .chat-progress-bar-fill { height: 100%; background: var(--gold); transition: width 0.5s ease; }
+        .chat-progress-info { display: flex; justify-content: space-between; padding: 6px 16px; font-size: 0.75rem; color: var(--text-muted); background: var(--cream); border-bottom: 1px solid var(--border); }
         .chat-messages {
             flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
-            background: var(--neutral-50);
+            background: var(--cream);
         }
         .msg { max-width: 80%; padding: 12px 16px; border-radius: var(--radius-lg); font-size: 0.95rem; line-height: 1.5; animation: msgIn 0.3s ease; }
         @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .msg-ai { align-self: flex-start; background: white; border: 1px solid var(--neutral-200); border-bottom-left-radius: 4px; }
-        .msg-user { align-self: flex-end; background: var(--primary-500); color: white; border-bottom-right-radius: 4px; }
-        .msg-label { font-size: 0.75rem; color: var(--neutral-500); margin-bottom: 4px; font-weight: 600; }
+        .msg-ai { align-self: flex-start; background: var(--card-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+        .msg-user { align-self: flex-end; background: var(--gold); color: var(--text-dark); border-bottom-right-radius: 4px; }
+        .msg-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
         .typing-dots { display: flex; gap: 4px; padding: 12px 16px; align-self: flex-start; }
-        .typing-dots span { width: 8px; height: 8px; background: var(--neutral-300); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-dots span { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
         .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
         .chat-input-area {
-            display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--neutral-200); background: white;
+            display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border); background: var(--card-bg);
         }
         .chat-input-area textarea {
-            flex: 1; padding: 12px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md);
+            flex: 1; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-md);
             resize: none; font-family: inherit; font-size: 0.95rem; min-height: 48px; max-height: 120px;
+            background: var(--cream); color: var(--text-dark);
         }
-        .chat-input-area textarea:focus { outline: none; border-color: var(--primary-500); }
+        .chat-input-area textarea:focus { outline: none; border-color: var(--gold); }
         .chat-input-area button {
-            padding: 0 18px; background: var(--primary-500); color: white; border: none;
+            padding: 0 18px; background: var(--gold); color: var(--text-dark); border: none;
             border-radius: var(--radius-md); font-size: 1.1rem; cursor: pointer; transition: background 0.2s;
         }
-        .chat-input-area button:hover { background: var(--primary-600); }
-        .chat-input-area button:disabled { background: var(--neutral-300); cursor: not-allowed; }
+        .chat-input-area button:hover { background: var(--gold-hover); }
+        .chat-input-area button:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
 
         /* ─── Web Form Interface ─── */
         .webform-container { padding: 32px; }
         .webform-question { margin-bottom: 28px; animation: slideUp 0.4s ease; }
         .webform-question h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
-        .webform-question .q-number { color: var(--primary-500); font-weight: 700; margin-right: 4px; }
+        .webform-question .q-number { color: var(--gold); font-weight: 700; margin-right: 4px; }
         .webform-question textarea {
-            width: 100%; padding: 14px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md);
+            width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: var(--radius-md);
             font-family: inherit; font-size: 0.95rem; min-height: 100px; resize: vertical;
+            background: var(--cream); color: var(--text-dark);
         }
-        .webform-question textarea:focus { outline: none; border-color: var(--primary-500); }
-        .progress-bar { height: 6px; background: var(--neutral-200); border-radius: 3px; overflow: hidden; margin-bottom: 24px; }
-        .progress-bar-fill { height: 100%; background: var(--primary-500); transition: width 0.4s ease; border-radius: 3px; }
+        .webform-question textarea:focus { outline: none; border-color: var(--gold); }
+        .progress-bar { height: 6px; background: var(--cream-dark); border-radius: 3px; overflow: hidden; margin-bottom: 24px; }
+        .progress-bar-fill { height: 100%; background: var(--gold); transition: width 0.4s ease; border-radius: 3px; }
 
         /* ─── Audio Interface ─── */
         .audio-container { text-align: center; padding: 40px 32px; }
         .mic-btn {
             width: 100px; height: 100px; border-radius: 50%; border: none;
-            background: var(--primary-500); color: white; font-size: 2.5rem;
+            background: var(--gold); color: var(--text-dark); font-size: 2.5rem;
             cursor: pointer; transition: all 0.3s; margin: 24px auto; display: flex;
             align-items: center; justify-content: center;
         }
-        .mic-btn:hover { transform: scale(1.05); background: var(--primary-600); }
+        .mic-btn:hover { transform: scale(1.05); background: var(--gold-hover); }
         .mic-btn.recording { background: var(--danger); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 70% { box-shadow: 0 0 0 20px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
-        .audio-status { font-size: 1rem; color: var(--neutral-500); margin-top: 16px; }
-        .audio-transcript { text-align: left; margin-top: 20px; padding: 16px; background: var(--neutral-50); border-radius: var(--radius-md); font-size: 0.9rem; max-height: 200px; overflow-y: auto; }
+        .audio-status { font-size: 1rem; color: var(--text-muted); margin-top: 16px; }
+        .audio-transcript { text-align: left; margin-top: 20px; padding: 16px; background: var(--cream); border-radius: var(--radius-md); font-size: 0.9rem; max-height: 200px; overflow-y: auto; border: 1px solid var(--border); }
 
         /* ─── Completion ─── */
         .completion-screen { text-align: center; padding: 48px 32px; }
         .completion-screen .icon { font-size: 4rem; color: var(--success); margin-bottom: 16px; }
         .completion-screen h2 { font-size: 1.5rem; margin-bottom: 8px; }
-        .completion-screen p { color: var(--neutral-500); }
+        .completion-screen p { color: var(--text-muted); }
         .topic-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
-        .topic-pill { background: var(--primary-50); color: var(--primary-700); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; border: 1px solid var(--primary-200); }
-        .summary-box { background: var(--neutral-50); border-radius: var(--radius-lg); padding: 20px; margin-top: 20px; text-align: left; }
-        .summary-box h4 { font-size: 0.9rem; color: var(--primary-600); margin-bottom: 10px; }
-        .summary-box p { font-size: 0.88rem; color: var(--neutral-700); line-height: 1.6; }
+        .topic-pill { background: var(--gold-light); color: var(--gold-hover); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; border: 1px solid var(--gold-border); }
+        .summary-box { background: var(--cream); border-radius: var(--radius-lg); padding: 20px; margin-top: 20px; text-align: left; border: 1px solid var(--border); }
+        .summary-box h4 { font-size: 0.9rem; color: var(--gold-hover); margin-bottom: 10px; }
+        .summary-box p { font-size: 0.88rem; color: var(--text-body); line-height: 1.6; }
 
         /* ─── Utilities ─── */
         .hidden { display: none !important; }
@@ -165,37 +167,37 @@
         .mt-2 { margin-top: 16px; }
         .mt-3 { margin-top: 24px; }
         .mb-2 { margin-bottom: 16px; }
-        .text-muted { color: var(--neutral-500); }
+        .text-muted { color: var(--text-muted); }
 
         /* ─── Language Selector ─── */
-        .lang-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 12px 14px; background: var(--primary-50); border-radius: var(--radius-md); border: 1px solid var(--primary-200); }
-        .lang-selector i { color: var(--primary-500); }
-        .lang-selector select { flex: 1; padding: 8px 10px; border: 1px solid var(--neutral-200); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; background: white; cursor: pointer; }
-        .lang-selector select:focus { outline: none; border-color: var(--primary-500); }
+        .lang-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 12px 14px; background: var(--gold-light); border-radius: var(--radius-md); border: 1px solid var(--gold-border); }
+        .lang-selector i { color: var(--gold); }
+        .lang-selector select { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 0.9rem; background: var(--card-bg); cursor: pointer; color: var(--text-dark); }
+        .lang-selector select:focus { outline: none; border-color: var(--gold); }
 
         /* ─── Emoji Reactions ─── */
         .emoji-reactions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-        .emoji-btn { font-size: 1.5rem; padding: 6px 10px; border: 2px solid var(--neutral-200); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; background: white; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .emoji-btn:hover { transform: scale(1.15); border-color: var(--primary-500); }
-        .emoji-btn.selected { border-color: var(--primary-500); background: var(--primary-50); transform: scale(1.1); box-shadow: 0 0 0 2px var(--primary-200); }
-        .emoji-btn .emoji-label { font-size: 0.65rem; color: var(--neutral-500); }
-        .emoji-feedback { font-size: 0.82rem; color: var(--primary-600); margin-top: 6px; font-weight: 500; }
+        .emoji-btn { font-size: 1.5rem; padding: 6px 10px; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; background: var(--card-bg); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .emoji-btn:hover { transform: scale(1.15); border-color: var(--gold); }
+        .emoji-btn.selected { border-color: var(--gold); background: var(--gold-light); transform: scale(1.1); box-shadow: 0 0 0 2px var(--gold-border); }
+        .emoji-btn .emoji-label { font-size: 0.65rem; color: var(--text-muted); }
+        .emoji-feedback { font-size: 0.82rem; color: var(--gold-hover); margin-top: 6px; font-weight: 500; }
 
         /* ─── Pause/Resume ─── */
-        .pause-btn { position: fixed; bottom: 20px; right: 20px; background: white; border: 2px solid var(--neutral-200); border-radius: 40px; padding: 10px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 8px; z-index: 100; transition: all 0.2s; color: var(--neutral-700); font-family: inherit; }
-        .pause-btn:hover { border-color: var(--primary-500); color: var(--primary-600); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-        .resume-card { background: var(--primary-50); border: 2px solid var(--primary-200); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
-        .resume-card h4 { color: var(--primary-700); font-size: 0.95rem; margin-bottom: 8px; }
-        .resume-card p { color: var(--neutral-500); font-size: 0.88rem; margin-bottom: 12px; }
+        .pause-btn { position: fixed; bottom: 20px; right: 20px; background: var(--card-bg); border: 2px solid var(--border); border-radius: 40px; padding: 10px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 8px; z-index: 100; transition: all 0.2s; color: var(--text-body); font-family: inherit; }
+        .pause-btn:hover { border-color: var(--gold); color: var(--gold-hover); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .resume-card { background: var(--gold-light); border: 2px solid var(--gold-border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .resume-card h4 { color: var(--gold-hover); font-size: 0.95rem; margin-bottom: 8px; }
+        .resume-card p { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px; }
         .resume-btns { display: flex; gap: 10px; }
         .resume-btns button { flex: 1; }
 
         /* ─── Toast ─── */
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
         .toast {
-            background: white; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 10px;
+            background: var(--card-bg); border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 10px;
             box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px;
-            animation: slideIn 0.3s ease; min-width: 280px;
+            animation: slideIn 0.3s ease; min-width: 280px; border: 1px solid var(--border);
         }
         @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
         .toast-error { border-left: 4px solid var(--danger); }
@@ -348,7 +350,7 @@ const InterviewApp = {
         // Change color when near end
         if (remaining <= 2) el.style.color = 'var(--danger)';
         else if (remaining <= 5) el.style.color = 'var(--warning)';
-        else el.style.color = 'var(--neutral-500)';
+        else el.style.color = 'var(--text-muted)';
     },
 
     _stopTimer() {
@@ -412,13 +414,13 @@ const InterviewApp = {
         document.getElementById('app-root').innerHTML = `
             <div class="card" id="screen-email">
                 <div class="card-header">
-                    <i class="fas fa-brain" style="font-size:1.8rem;margin-bottom:8px"></i>
+                    <i class="fas fa-sparkles" style="font-size:1.8rem;margin-bottom:8px;color:var(--gold)"></i>
                     <h1>${this.esc(info.title)}</h1>
                     <p>You've been invited to share your thoughts and feedback</p>
                 </div>
                 <div class="card-body">
                     <p style="margin-bottom:20px;line-height:1.6">
-                        <i class="fas fa-info-circle" style="color:var(--primary-500)"></i>
+                        <i class="fas fa-info-circle" style="color:var(--gold)"></i>
                         This interview is powered by AI. Your responses will be kept confidential and used for research purposes.
                         ${info.require_email ? 'Please sign in with your email to begin.' : 'Enter your email to begin, or participate anonymously.'}
                     </p>
@@ -435,10 +437,10 @@ const InterviewApp = {
                     </div>
                     ${!info.require_email ? `
                     <div id="anon-toggle" style="margin-bottom:16px">
-                        <button class="btn" id="btn-anon" style="background:var(--neutral-100);color:var(--neutral-700);width:100%;border:2px dashed var(--neutral-300);gap:8px">
+                        <button class="btn" id="btn-anon" style="background:var(--cream);color:var(--text-body);width:100%;border:2px dashed var(--border);gap:8px">
                             <i class="fas fa-user-secret"></i> Continue Anonymously
                         </button>
-                        <p style="font-size:0.78rem;color:var(--neutral-400);text-align:center;margin-top:6px"><i class="fas fa-lock"></i> No email or name required — fully anonymous</p>
+                        <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-top:6px"><i class="fas fa-lock"></i> No email or name required — fully anonymous</p>
                     </div>` : ''}
                     <div class="lang-selector">
                         <i class="fas fa-globe"></i>
@@ -540,7 +542,7 @@ const InterviewApp = {
         const consentText = this.surveyInfo.consent_form_text;
         // Convert plain text paragraphs to formatted HTML
         const formatted = this.esc(consentText)
-            .replace(/^([A-Z][A-Z\s&]+)$/gm, '<h4 style="color:var(--primary-700);margin-top:16px;margin-bottom:6px;font-size:0.95rem">$1</h4>')
+            .replace(/^([A-Z][A-Z\s&]+)$/gm, '<h4 style="color:var(--gold-hover);margin-top:16px;margin-bottom:6px;font-size:0.95rem">$1</h4>')
             .replace(/\n\n/g, '</p><p style="margin-bottom:10px;line-height:1.6">')
             .replace(/\n/g, '<br>');
 
@@ -552,13 +554,13 @@ const InterviewApp = {
                     <p>${this.esc(this.surveyInfo.title)}</p>
                 </div>
                 <div class="card-body" style="max-height:55vh;overflow-y:auto;padding:24px 28px">
-                    <div style="font-size:0.92rem;color:var(--neutral-700)">
+                    <div style="font-size:0.92rem;color:var(--text-body)">
                         <p style="margin-bottom:10px;line-height:1.6">${formatted}</p>
                     </div>
                 </div>
-                <div style="padding:20px 28px;border-top:1px solid var(--border);background:var(--neutral-50)">
+                <div style="padding:20px 28px;border-top:1px solid var(--border);background:var(--cream)">
                     <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
-                        <input type="checkbox" id="consent-checkbox" style="margin-top:4px;width:18px;height:18px;cursor:pointer;accent-color:var(--primary-500)">
+                        <input type="checkbox" id="consent-checkbox" style="margin-top:4px;width:18px;height:18px;cursor:pointer;accent-color:var(--gold)">
                         <label for="consent-checkbox" style="font-size:0.9rem;cursor:pointer;line-height:1.5">
                             I have read and understood this consent form. I voluntarily agree to participate in this research study.
                         </label>
@@ -567,7 +569,7 @@ const InterviewApp = {
                         <button class="btn btn-primary btn-block" id="btn-consent-agree" disabled style="opacity:0.5">
                             <i class="fas fa-check-circle"></i> I Agree — Continue
                         </button>
-                        <button class="btn btn-block" id="btn-consent-decline" style="background:var(--neutral-200);color:var(--neutral-600)">
+                        <button class="btn btn-block" id="btn-consent-decline" style="background:var(--cream-dark);color:var(--text-body)">
                             <i class="fas fa-times"></i> Decline
                         </button>
                     </div>
@@ -619,7 +621,7 @@ const InterviewApp = {
                     <div class="channel-grid">
                         ${info.web_form_enabled ? `
                         <div class="channel-card" data-channel="web-form">
-                            <div class="icon" style="color:var(--primary-500)"><i class="fas fa-clipboard-list"></i></div>
+                            <div class="icon" style="color:var(--gold)"><i class="fas fa-clipboard-list"></i></div>
                             <h3>Web Form</h3>
                             <p>Answer questions one at a time at your own pace</p>
                         </div>` : ''}
@@ -723,7 +725,7 @@ const InterviewApp = {
                     <div style="display:flex;justify-content:space-between;align-items:center">
                         <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
                         <div style="display:flex;align-items:center;gap:12px">
-                            <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                            <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--text-muted)">--:--</span>
                             <span id="wf-counter" style="font-size:0.85rem;opacity:0.8">1 / ${this.questions.length || '?'}</span>
                         </div>
                     </div>
@@ -774,7 +776,7 @@ const InterviewApp = {
                 <h3><span class="q-number">Q${this.currentQIndex + 1}.</span> ${this.esc(questionText)}</h3>
                 <textarea id="wf-answer" placeholder="Type your answer here..." rows="4"></textarea>
                 <div style="margin-top:10px">
-                    <p style="font-size:0.82rem;color:var(--neutral-500);margin-bottom:6px"><i class="fas fa-smile"></i> How does this question make you feel?</p>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px"><i class="fas fa-smile"></i> How does this question make you feel?</p>
                     <div class="emoji-reactions" id="emoji-reactions">
                         <button class="emoji-btn" data-emoji="love" data-value="very_positive" title="Love it">❤️<span class="emoji-label">Love</span></button>
                         <button class="emoji-btn" data-emoji="happy" data-value="positive" title="Happy">😊<span class="emoji-label">Happy</span></button>
@@ -838,13 +840,13 @@ const InterviewApp = {
                     this._totalFollowUps++;
                     const area = document.getElementById('wf-question-area');
                     area.innerHTML = `
-                        <div class="webform-question" style="border-left:3px solid var(--primary-500);padding-left:16px">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--primary-600);font-size:0.85rem;font-weight:600">
+                        <div class="webform-question" style="border-left:3px solid var(--gold);padding-left:16px">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--gold);font-size:0.85rem;font-weight:600">
                                 <i class="fas fa-lightbulb"></i> Follow-up Question
                             </div>
                             <h3>${this.esc(followResp.follow_up.follow_up)}</h3>
                             <textarea id="wf-answer" placeholder="Share more details..." rows="4"></textarea>
-                            <p style="font-size:0.75rem;color:var(--neutral-400);margin-top:8px">
+                            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">
                                 <i class="fas fa-forward"></i> You can also skip this by clicking Next
                             </p>
                         </div>`;
@@ -906,13 +908,13 @@ const InterviewApp = {
                 this._totalFollowUps++;
                 const area = document.getElementById('wf-question-area');
                 area.innerHTML = `
-                    <div class="webform-question" style="border-left:3px solid var(--primary-500);padding-left:16px">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--primary-600);font-size:0.85rem;font-weight:600">
+                    <div class="webform-question" style="border-left:3px solid var(--gold);padding-left:16px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--gold);font-size:0.85rem;font-weight:600">
                             <i class="fas fa-lightbulb"></i> Follow-up Question
                         </div>
                         <h3>${this.esc(resp.follow_up.follow_up)}</h3>
                         <textarea id="wf-answer" placeholder="Share more details..." rows="4"></textarea>
-                        <p style="font-size:0.75rem;color:var(--neutral-400);margin-top:8px">
+                        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">
                             <i class="fas fa-forward"></i> You can also skip this by clicking Next
                         </p>
                     </div>`;
@@ -963,7 +965,7 @@ const InterviewApp = {
                         <p style="font-size:0.8rem;margin:0;opacity:0.8">${this.esc(this.surveyInfo.title)}</p>
                     </div>
                     <div style="display:flex;align-items:center;gap:12px">
-                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--text-muted)">--:--</span>
                         <span id="chat-q-counter" style="font-size:0.8rem;opacity:0.85;white-space:nowrap">0 / ${totalQ}</span>
                     </div>
                 </div>
@@ -974,13 +976,13 @@ const InterviewApp = {
                 </div>
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages"></div>
-                    <div id="chat-emoji-bar" style="display:flex;gap:4px;padding:6px 16px;background:var(--neutral-50);border-top:1px solid var(--neutral-200)">
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="👍" title="Thumbs up">👍</button>
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="❤️" title="Love">❤️</button>
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😊" title="Happy">😊</button>
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😕" title="Confused">😕</button>
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="😔" title="Sad">😔</button>
-                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--neutral-200)" data-emoji="🔥" title="Fire">🔥</button>
+                    <div id="chat-emoji-bar" style="display:flex;gap:4px;padding:6px 16px;background:var(--cream);border-top:1px solid var(--border)">
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="👍" title="Thumbs up">👍</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="❤️" title="Love">❤️</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="😊" title="Happy">😊</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="😕" title="Confused">😕</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="😔" title="Sad">😔</button>
+                        <button class="emoji-btn" style="font-size:1.1rem;padding:4px 8px;border:1px solid var(--border)" data-emoji="🔥" title="Fire">🔥</button>
                     </div>
                     <div class="chat-input-area">
                         <textarea id="chat-input" placeholder="Type your answer..." rows="1"></textarea>
@@ -1199,7 +1201,7 @@ const InterviewApp = {
                     <h1 style="font-size:1.1rem">${this.esc(this.surveyInfo.title)}</h1>
                     <div style="display:flex;justify-content:space-between;align-items:center">
                         <p id="audio-counter">Question 1 of ${totalQ}</p>
-                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--neutral-500)">--:--</span>
+                        <span id="interview-timer" style="font-size:0.85rem;font-weight:700;color:var(--text-muted)">--:--</span>
                     </div>
                 </div>
                 <div class="progress-header">
@@ -1312,7 +1314,7 @@ const InterviewApp = {
             }
         } catch (e) {
             status.textContent = '';
-            status.innerHTML = `Transcription failed. <button onclick="InterviewApp.retryTranscription()" style="background:var(--primary-500);color:#fff;border:none;padding:6px 16px;border-radius:var(--radius-md);cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-redo"></i> Try Again</button>`;
+            status.innerHTML = `Transcription failed. <button onclick="InterviewApp.retryTranscription()" style="background:var(--gold);color:var(--text-dark);border:none;padding:6px 16px;border-radius:var(--radius-md);cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-redo"></i> Try Again</button>`;
             this._lastAudioBlob = blob;
         }
     },
@@ -1354,7 +1356,7 @@ const InterviewApp = {
                     this._followUpCount++;
                     this._totalFollowUps++;
                     const qEl = document.getElementById('audio-question');
-                    qEl.innerHTML = `<span style="color:var(--primary-600);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(followResp.follow_up.follow_up)}`;
+                    qEl.innerHTML = `<span style="color:var(--gold);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(followResp.follow_up.follow_up)}`;
                     document.getElementById('audio-transcript').classList.add('hidden');
                     document.getElementById('audio-actions').classList.add('hidden');
                     document.getElementById('audio-status').textContent = 'Tap to record your follow-up answer (or tap Submit to skip)';
@@ -1405,7 +1407,7 @@ const InterviewApp = {
                 this._followUpCount = 1;
                 this._totalFollowUps++;
                 const qEl = document.getElementById('audio-question');
-                qEl.innerHTML = `<span style="color:var(--primary-600);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(resp.follow_up.follow_up)}`;
+                qEl.innerHTML = `<span style="color:var(--gold);font-size:0.8rem;font-weight:600"><i class="fas fa-lightbulb"></i> Follow-up</span><br>${this.esc(resp.follow_up.follow_up)}`;
                 document.getElementById('audio-transcript').classList.add('hidden');
                 document.getElementById('audio-actions').classList.add('hidden');
                 document.getElementById('audio-status').textContent = 'Tap to record your follow-up answer (or tap Submit to skip)';
@@ -1474,7 +1476,7 @@ const InterviewApp = {
             if (topics.length > 0) {
                 topicsHTML = `
                     <div style="margin-top:20px">
-                        <p style="font-size:0.88rem;color:var(--neutral-500);margin-bottom:8px"><i class="fas fa-tags" style="color:var(--primary-500)"></i> Topics you covered:</p>
+                        <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:8px"><i class="fas fa-tags" style="color:var(--gold)"></i> Topics you covered:</p>
                         <div class="topic-pills">${topics.map(t => `<span class="topic-pill">${this.esc(typeof t === 'string' ? t : t.name || t.topic || '')}</span>`).join('')}</div>
                     </div>`;
             }
@@ -1499,9 +1501,9 @@ const InterviewApp = {
                     <p class="text-muted mb-2">Thank you for sharing your thoughts and feedback. Your responses have been recorded and will help improve the product.</p>
                     ${topicsHTML}
                     ${summaryHTML}
-                    <div style="background:var(--neutral-50);padding:20px;border-radius:var(--radius-lg);margin-top:20px">
-                        <p style="font-size:0.9rem;color:var(--neutral-500)">
-                            <i class="fas fa-shield-alt" style="color:var(--primary-500)"></i>
+                    <div style="background:var(--cream);padding:20px;border-radius:var(--radius-lg);margin-top:20px;border:1px solid var(--border)">
+                        <p style="font-size:0.9rem;color:var(--text-muted)">
+                            <i class="fas fa-shield-alt" style="color:var(--gold)"></i>
                             Your responses are securely stored and will be used solely for research purposes.
                         </p>
                     </div>
@@ -1551,7 +1553,7 @@ const InterviewApp = {
                         <p>Saved on ${this.esc(savedDate)} — Question ${saved.currentQIndex + 1} via ${this.esc(saved.channel || 'web-form')}</p>
                         <div class="resume-btns">
                             <button class="btn btn-primary" id="btn-resume"><i class="fas fa-play"></i> Resume</button>
-                            <button class="btn" id="btn-new" style="background:var(--neutral-200);color:var(--neutral-700)"><i class="fas fa-redo"></i> Start Fresh</button>
+                            <button class="btn" id="btn-new" style="background:var(--cream-dark);color:var(--text-body)"><i class="fas fa-redo"></i> Start Fresh</button>
                         </div>
                     </div>
                 </div>

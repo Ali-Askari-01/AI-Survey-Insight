@@ -8,7 +8,8 @@
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -32,9 +33,9 @@
     <div class="login-overlay" id="login-overlay">
         <div class="login-card">
             <div class="login-header">
-                <i class="fas fa-brain" style="font-size:2.5rem;color:var(--primary-500)"></i>
-                <h2>InsightAI</h2>
-                <p class="text-muted">Multi-Channel AI Feedback & Insight Engine</p>
+                <i class="fas fa-sparkles" style="font-size:2.5rem;color:var(--accent-gold)"></i>
+                <h2 style="font-family:var(--font-display);color:var(--text-primary)">InsightAI</h2>
+                <p style="color:var(--text-secondary)">Multi-Channel AI Feedback & Insight Engine</p>
             </div>
 
             <!-- Login Form -->
@@ -69,7 +70,7 @@
                 <div class="form-group">
                     <label for="reg-password">Password</label>
                     <input type="password" id="reg-password" placeholder="••••••••" minlength="8" maxlength="128" required>
-                    <small style="color: var(--gray-500); font-size: 0.75rem; margin-top: 4px; display: block;">Min 8 characters • 1 uppercase • 1 lowercase • 1 number</small>
+                    <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">Min 8 characters • 1 uppercase • 1 lowercase • 1 number</small>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block" id="register-btn">
                     <i class="fas fa-user-plus"></i> Create Account
@@ -100,7 +101,7 @@
     <nav class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
         <div class="sidebar-header">
             <div class="logo">
-                <i class="fas fa-brain"></i>
+                <i class="fas fa-sparkles"></i>
                 <span class="logo-text">InsightAI</span>
             </div>
             <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
