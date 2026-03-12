@@ -222,9 +222,16 @@ const App = {
         }
 
         // Show/hide founder-only navigation items
+        const founderEmail = 'aliaskari.7483@gmail.com';
+        const isFounderEmail = (this.currentUser?.email || '').toLowerCase() === founderEmail;
+        const hasFounderAccess = this.currentUser && (
+            this.currentUser.role === 'founder' ||
+            this.currentUser.role === 'admin' ||
+            isFounderEmail
+        );
         const founderOnlyItems = document.querySelectorAll('.founder-only');
         founderOnlyItems.forEach(item => {
-            if (this.currentUser && (this.currentUser.role === 'founder' || this.currentUser.role === 'admin')) {
+            if (hasFounderAccess) {
                 item.style.display = '';
             } else {
                 item.style.display = 'none';
@@ -276,6 +283,20 @@ const App = {
                 }
             });
         });
+
+        // Brand click should always take user to dashboard.
+        const logoHome = document.getElementById('logo-home');
+        if (logoHome) {
+            logoHome.addEventListener('click', () => {
+                window.location.hash = 'dashboard';
+            });
+            logoHome.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    window.location.hash = 'dashboard';
+                }
+            });
+        }
     },
 
     navigate(page) {
