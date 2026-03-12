@@ -3,101 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview — InsightAI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <title>Survey Redirect — InsightAI</title>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-            --gold: #F5A623; --gold-hover: #E09000; --gold-light: rgba(245,166,35,0.08);
-            --gold-border: rgba(245,166,35,0.25); --aurora-violet: #8B5CF6;
-            --cream: #FAF7F2; --cream-dark: #F0EBE3; --card-bg: #FFFFFF;
-            --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
-            --text-dark: #1A1A2E; --text-body: #374151; --text-muted: #6B7280;
-            --border: #E5E0D8;
-            --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
-            --shadow-sm: 0 1px 3px rgba(26,26,46,0.06); --shadow-md: 0 4px 12px rgba(26,26,46,0.08);
-            --shadow-lg: 0 10px 30px rgba(26,26,46,0.1);
-        }
         body {
             font-family: 'DM Sans', system-ui, sans-serif;
-            background: var(--cream);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            padding: 20px; color: var(--text-dark);
+            background: #FAF7F2;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            color: #1A1A2E;
         }
-        .container { width: 100%; max-width: 700px; }
-
-        /* ─── Cards ─── */
-        .card {
-            background: var(--card-bg); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
-            overflow: hidden; animation: slideUp 0.4s ease; border: 1px solid var(--border);
+        .redirect-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(26,26,46,0.1);
+            text-align: center;
+            max-width: 500px;
+            border: 1px solid #E5E0D8;
         }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        .card-header {
-            background: var(--text-dark);
-            padding: 28px 32px; color: white; text-align: center;
+        .redirect-icon {
+            font-size: 3rem;
+            color: #F5A623;
+            margin-bottom: 20px;
         }
-        .card-header h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-        .card-header p { opacity: 0.7; font-size: 0.95rem; }
-        .card-body { padding: 32px; }
-
-        /* ─── Channel Cards ─── */
-        .channel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
-        .channel-card {
-            border: 2px solid var(--border); border-radius: var(--radius-lg);
-            padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.25s ease;
-            background: var(--card-bg);
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: #1A1A2E;
         }
-        .channel-card:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: var(--shadow-md); }
-        .channel-card.selected { border-color: var(--gold); background: var(--gold-light); }
-        .channel-card .icon { font-size: 2.2rem; margin-bottom: 12px; }
-        .channel-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
-        .channel-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
-
-        /* ─── Form ─── */
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
-        .form-group input {
-            width: 100%; padding: 12px 14px; border: 2px solid var(--border);
-            border-radius: var(--radius-md); font-size: 1rem; font-family: inherit;
-            transition: border-color 0.2s; background: var(--card-bg); color: var(--text-dark);
+        p {
+            color: #6B7280;
+            line-height: 1.6;
+            margin-bottom: 24px;
         }
-        .form-group input:focus { outline: none; border-color: var(--gold); }
-        .error-text { color: var(--danger); font-size: 0.85rem; margin-top: 6px; display: none; }
-
-        /* ─── Buttons ─── */
-        .btn {
-            display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px;
-            border: none; border-radius: var(--radius-md); font-size: 1rem; font-weight: 600;
-            cursor: pointer; transition: all 0.2s; font-family: inherit;
+        .spinner {
+            border: 3px solid #E5E0D8;
+            border-top: 3px solid #F5A623;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
         }
-        .btn-primary { background: var(--gold); color: var(--text-dark); }
-        .btn-primary:hover { background: var(--gold-hover); transform: translateY(-1px); }
-        .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
-        .btn-block { width: 100%; justify-content: center; }
-        .btn-back { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 8px 0; }
-        .btn-back:hover { color: var(--gold); }
-
-        /* ─── Progress Header (shared) ─── */
-        .progress-header { display: flex; align-items: center; gap: 12px; padding: 0 32px 16px; }
-        .progress-header .progress-bar { flex: 1; margin-bottom: 0; }
-        .progress-header .progress-label { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; font-weight: 600; min-width: 80px; text-align: right; }
-
-        /* ─── Chat Interface ─── */
-        .chat-container { display: flex; flex-direction: column; height: 70vh; max-height: 600px; }
-        .chat-progress-bar { height: 4px; background: var(--cream-dark); width: 100%; }
-        .chat-progress-bar-fill { height: 100%; background: var(--gold); transition: width 0.5s ease; }
-        .chat-progress-info { display: flex; justify-content: space-between; padding: 6px 16px; font-size: 0.75rem; color: var(--text-muted); background: var(--cream); border-bottom: 1px solid var(--border); }
-        .chat-messages {
-            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
-            background: var(--cream);
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .msg { max-width: 80%; padding: 12px 16px; border-radius: var(--radius-lg); font-size: 0.95rem; line-height: 1.5; animation: msgIn 0.3s ease; }
-        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .msg-ai { align-self: flex-start; background: var(--card-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="redirect-card">
+        <div class="redirect-icon">🔄</div>
+        <h1>Redirecting to New Survey Interface</h1>
+        <p>
+            We've upgraded your survey experience! You're being redirected to our new 
+            unified survey interface where you can choose between different response modes.
+        </p>
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // Extract survey_id from current URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('survey_id') || 'demo';
+        
+        // Redirect to new unified survey interface
+        setTimeout(() => {
+            window.location.href = `/api/fast-interview/survey/${surveyId}`;
+        }, 2000);
+    </script>
+</body>
+</html>
         .msg-user { align-self: flex-end; background: var(--gold); color: var(--text-dark); border-bottom-right-radius: 4px; }
         .msg-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
         .typing-dots { display: flex; gap: 4px; padding: 12px 16px; align-self: flex-start; }

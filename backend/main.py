@@ -18,7 +18,7 @@ from typing import List
 from .database import init_db
 from .auth import get_current_user, decode_token
 from .routes import survey, interview, insights, reports, notifications, auth
-from .routes import ai_processing
+from .routes import ai_processing, fast_interview
 from .routes import infrastructure as infra_routes
 from .routes import data_architecture as data_arch_routes
 from .routes import performance as perf_routes
@@ -144,6 +144,7 @@ async def audit_trail_middleware(request: Request, call_next):
 app.include_router(auth.router)
 app.include_router(survey.router)
 app.include_router(interview.router)
+app.include_router(fast_interview.router)
 app.include_router(insights.router)
 app.include_router(reports.router)
 app.include_router(notifications.router)

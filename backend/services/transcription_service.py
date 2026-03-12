@@ -88,3 +88,32 @@ class TranscriptionService:
         except Exception as e:
             print(f"[AssemblyAI Error] {e}")
             return {"error": str(e), "text": ""}
+
+    @staticmethod
+    async def transcribe_audio(file_path: str) -> dict:
+        """Async wrapper for audio transcription used by fast_interview routes."""
+        try:
+            # Use synchronous method but wrap in executor for async
+            import asyncio
+            import concurrent.futures
+            
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                result = await loop.run_in_executor(
+                    executor, 
+                    TranscriptionService.transcribe_file, 
+                    file_path
+                )
+            return {
+                "success": True,
+                "text": result.get("text", ""),
+                "confidence": result.get("confidence", 0),
+                "language": result.get("language", "en")
+            }
+        except Exception as e:
+            print(f"[Async Transcription Error] {e}")
+            return {
+                "success": False,
+                "text": "",
+                "error": str(e)
+            }
