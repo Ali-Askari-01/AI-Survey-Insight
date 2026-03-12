@@ -25,7 +25,7 @@ try:
 except ImportError:
     user_agents = None
 
-from ..auth import get_current_user_optional, get_current_user
+from ..auth import get_optional_user, get_current_user
 from ..database import get_db, get_db_connection
 from ..services.metrics_service import MetricsService
 
@@ -114,7 +114,7 @@ class FeatureUsageRequest(BaseModel):
 async def track_page_view(
     analytics_data: WebsiteAnalyticsRequest,
     request: Request,
-    current_user = Depends(get_current_user_optional)
+    current_user = Depends(get_optional_user)
 ):
     """Track page views and user navigation for website analytics."""
     
@@ -159,7 +159,7 @@ async def track_page_view(
 async def submit_user_feedback(
     feedback_data: UserFeedbackRequest,
     request: Request,
-    current_user = Depends(get_current_user_optional)
+    current_user = Depends(get_optional_user)
 ):
     """Submit feedback about the software from users."""
     
@@ -187,7 +187,7 @@ async def submit_user_feedback(
 async def submit_respondent_experience(
     experience_data: RespondentExperienceRequest,
     request: Request,
-    current_user = Depends(get_current_user_optional)
+    current_user = Depends(get_optional_user)
 ):
     """Submit quick experience feedback from survey respondents (max 30 seconds)."""
     
@@ -236,7 +236,7 @@ async def submit_respondent_experience(
 async def track_feature_usage(
     usage_data: FeatureUsageRequest,
     request: Request,
-    current_user = Depends(get_current_user_optional)
+    current_user = Depends(get_optional_user)
 ):
     """Track specific feature usage for product analytics."""
     
