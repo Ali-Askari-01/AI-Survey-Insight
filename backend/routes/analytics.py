@@ -20,13 +20,46 @@ from pydantic import BaseModel, Field
 import sqlite3
 import json
 import uuid
-import user_agents
+try:
+    import user_agents
+except ImportError:
+    user_agents = None
 
 from ..auth import get_current_user_optional, get_current_user
 from ..database import get_db, get_db_connection
 from ..services.metrics_service import MetricsService
 
 router = APIRouter()
+
+
+def _parse_user_agent_info(user_agent_str: str) -> tuple[str, str]:
+    """Parse user-agent safely with graceful fallback when dependency is unavailable."""
+    if user_agents:
+        ua = user_agents.parse(user_agent_str)
+        device_type = "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "desktop"
+        browser = f"{ua.browser.family} {ua.browser.version_string}".strip()
+        return device_type, browser
+
+    ua_lower = (user_agent_str or "").lower()
+    if "mobile" in ua_lower or "android" in ua_lower or "iphone" in ua_lower:
+        device_type = "mobile"
+    elif "tablet" in ua_lower or "ipad" in ua_lower:
+        device_type = "tablet"
+    else:
+        device_type = "desktop"
+
+    if "edg/" in ua_lower:
+        browser = "Edge"
+    elif "chrome/" in ua_lower:
+        browser = "Chrome"
+    elif "firefox/" in ua_lower:
+        browser = "Firefox"
+    elif "safari/" in ua_lower:
+        browser = "Safari"
+    else:
+        browser = "Unknown"
+
+    return device_type, browser
 
 # ═════════════════════════════════════════════════════════════
 # MODELS — Request/Response validation
@@ -90,9 +123,7 @@ async def track_page_view(
     ip_address = request.client.host
     
     # Parse user agent for device info
-    ua = user_agents.parse(user_agent)
-    device_type = "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "desktop"
-    browser = f"{ua.browser.family} {ua.browser.version_string}"
+    device_type, browser = _parse_user_agent_info(user_agent)
     
     # Generate session ID if not present in cookies
     session_id = request.cookies.get("session_id", str(uuid.uuid4()))
@@ -162,8 +193,7 @@ async def submit_respondent_experience(
     
     # Extract device info from request
     user_agent = request.headers.get("user-agent", "")
-    ua = user_agents.parse(user_agent)
-    device_type = "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "desktop"
+    device_type, _ = _parse_user_agent_info(user_agent)
     
     # Get respondent ID if available
     respondent_id = None
