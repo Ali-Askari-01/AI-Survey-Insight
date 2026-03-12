@@ -88,6 +88,28 @@
                 Continue with Google
             </button>
         </div>
+        
+        <!-- Right Panel: Animated Visual -->
+        <div class="login-visual-panel">
+            <!-- Floating Elements -->
+            <div class="floating-element">📊</div>
+            <div class="floating-element">🎯</div>
+            <div class="floating-element">💡</div>
+            <div class="floating-element">📈</div>
+            <div class="floating-element">🚀</div>
+            
+            <!-- Main Content -->
+            <div class="visual-content">
+                <h3>AI-Powered Insights</h3>
+                <p>Unlock the power of intelligent survey analysis and respondent understanding</p>
+                <ul class="feature-list">
+                    <li>Multi-channel feedback collection</li>
+                    <li>Real-time AI analysis & insights</li>
+                    <li>Voice-enabled survey responses</li>
+                    <li>Dynamic conversation flows</li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <!-- ═══════════════════════════════════════════ -->
@@ -133,18 +155,10 @@
         </div>
 
         <div class="sidebar-footer">
-            <!-- Role Selector -->
-            <div class="role-selector">
-                <label for="role-select" class="sr-only">View as role</label>
-                <select id="role-select" class="role-select" aria-label="Select role view">
-                    <option value="executive">Executive</option>
-                    <option value="pm" selected>Product Manager</option>
-                    <option value="designer">Designer</option>
-                    <option value="engineer">Engineer</option>
-                    <option value="other">Other...</option>
-                </select>
-                <input type="text" id="role-custom-input" class="role-custom-input" placeholder="Enter your role" maxlength="30" hidden>
-            </div>
+            <!-- Logout Button -->
+            <button class="btn-logout" onclick="App.logout()" title="Sign out">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </button>
         </div>
     </nav>
 

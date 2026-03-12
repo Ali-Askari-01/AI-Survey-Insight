@@ -222,16 +222,162 @@
     font-weight: 500;
 }
 
-/* ── Right Panel: Aurora Visual ── */
-.login-overlay::after {
-    content: '';
+/* ── Right Panel: Aurora Visual with Animation ── */
+.login-visual-panel {
     position: absolute;
     right: 0;
     top: 0;
     width: 55%;
     height: 100%;
     background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 40%, #EC4899 100%);
-    z-index: -1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+}
+
+.visual-content {
+    text-align: center;
+    color: white;
+    z-index: 2;
+    max-width: 400px;
+    padding: 40px;
+}
+
+.visual-content h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+}
+
+.visual-content p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+.feature-list {
+    list-style: none;
+    text-align: left;
+    margin: 0;
+    padding: 0;
+}
+
+.feature-list li {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.feature-list li::before {
+    content: "✨";
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+/* Floating Animation Elements */
+.floating-element {
+    position: absolute;
+    opacity: 0.6;
+    animation: float 6s ease-in-out infinite;
+}
+
+.floating-element:nth-child(1) {
+    top: 15%;
+    left: 10%;
+    animation-delay: -1s;
+    font-size: 2rem;
+}
+
+.floating-element:nth-child(2) {
+    top: 25%;
+    right: 15%;
+    animation-delay: -3s;
+    font-size: 1.5rem;
+}
+
+.floating-element:nth-child(3) {
+    bottom: 20%;
+    left: 15%;
+    animation-delay: -5s;
+    font-size: 1.8rem;
+}
+
+.floating-element:nth-child(4) {
+    bottom: 30%;
+    right: 10%;
+    animation-delay: -2s;
+    font-size: 2.2rem;
+}
+
+.floating-element:nth-child(5) {
+    top: 40%;
+    left: 5%;
+    animation-delay: -4s;
+    font-size: 1.4rem;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.3;
+    }
+    25% {
+        transform: translateY(-15px) rotate(5deg);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateY(-25px) rotate(-3deg);
+        opacity: 0.8;
+    }
+    75% {
+        transform: translateY(-10px) rotate(2deg);
+        opacity: 0.5;
+    }
+}
+
+/* Gradient Animation */
+.login-visual-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, 
+        rgba(67, 56, 202, 0.8) 0%,
+        rgba(139, 92, 246, 0.6) 25%,
+        rgba(236, 72, 153, 0.8) 50%,
+        rgba(245, 101, 101, 0.6) 75%,
+        rgba(245, 166, 35, 0.8) 100%
+    );
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+    z-index: 1;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.login-overlay::after {
+    display: none;
 }
 
 /* ── User Info in Sidebar ── */
