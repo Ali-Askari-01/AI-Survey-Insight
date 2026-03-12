@@ -145,7 +145,7 @@ const SurveyDesigner = {
                     <!-- STEP 1: Review Questions with Follow-ups -->
                     <div class="wizard-panel" id="step-review">
                         <div id="ai-analysis-card" class="card mb-3">
-                            <div class="card-header" style="background: linear-gradient(135deg, var(--primary-500), var(--primary-700)); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+                            <div class="card-header" style="background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dim)); color: var(--bg-primary); border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                                 <h3 style="color:white"><i class="fas fa-brain"></i> AI Analysis</h3>
                             </div>
                             <div id="ai-analysis-body" class="card-body"></div>
@@ -702,7 +702,7 @@ const SurveyDesigner = {
                         ${this.audienceSets.length > 0 ? `
                             <div class="flex gap-1 flex-wrap mt-1">
                                 ${this.audienceSets.map(s => `<span class="badge" style="background:#e0e7ff;color:#4338ca">${Helpers.escapeHtml(s.audience)}</span>`).join('')}
-                                <span class="badge" style="background:#dcfce7;color:#16a34a">Generic</span>
+                                <span class="badge" style="background:rgba(16,185,129,0.15);color:#22c55e">Generic</span>
                             </div>
                         ` : `<p class="mt-1 text-muted">${Helpers.escapeHtml(analysis.respondent_guidance || 'Active users')}</p>`}
                     </div>
@@ -737,7 +737,7 @@ const SurveyDesigner = {
             list.innerHTML = `
                 <div class="audience-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--space-3);border-bottom:2px solid var(--neutral-200);padding-bottom:var(--space-2)">
                     <button class="audience-tab ${this.activeAudienceTab === 'generic' ? 'active' : ''}" data-tab="generic"
-                        style="padding:8px 16px;border:2px solid ${this.activeAudienceTab === 'generic' ? '#22c55e' : 'var(--neutral-200)'};border-radius:var(--radius-md);background:${this.activeAudienceTab === 'generic' ? '#dcfce7' : 'white'};cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.2s;font-family:inherit">
+                        style="padding:8px 16px;border:2px solid ${this.activeAudienceTab === 'generic' ? '#22c55e' : 'var(--border-subtle)'};border-radius:var(--radius-md);background:${this.activeAudienceTab === 'generic' ? 'rgba(34,197,94,0.12)' : 'var(--bg-elevated)'};color:var(--text-primary);cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.2s;font-family:inherit">
                         <i class="fas fa-globe" style="color:#22c55e"></i> Generic / All Audiences
                         <span style="font-size:0.75rem;opacity:0.7;margin-left:4px">(${this.genericSet?.questions?.length || 0})</span>
                     </button>
@@ -745,7 +745,7 @@ const SurveyDesigner = {
                         const color = tabColors[idx % tabColors.length];
                         const isActive = this.activeAudienceTab === s.audience;
                         return `<button class="audience-tab ${isActive ? 'active' : ''}" data-tab="${Helpers.escapeHtml(s.audience)}"
-                            style="padding:8px 16px;border:2px solid ${isActive ? color : 'var(--neutral-200)'};border-radius:var(--radius-md);background:${isActive ? color + '15' : 'white'};cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.2s;font-family:inherit">
+                            style="padding:8px 16px;border:2px solid ${isActive ? color : 'var(--border-subtle)'};border-radius:var(--radius-md);background:${isActive ? color + '20' : 'var(--bg-elevated)'};color:var(--text-primary);cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.2s;font-family:inherit">
                             <i class="fas fa-users" style="color:${color}"></i> ${Helpers.escapeHtml(s.audience)}
                             <span style="font-size:0.75rem;opacity:0.7;margin-left:4px">(${s.questions?.length || 0})</span>
                         </button>`;
@@ -1025,7 +1025,7 @@ const SurveyDesigner = {
                     </div>
                     <div style="width:2px; height:20px; background:var(--border-light); margin-left:19px"></div>
                     <div style="display:flex; align-items:center; gap: var(--space-3)">
-                        <div style="width:40px; height:40px; border-radius:50%; background:var(--primary-500); color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0">
+                        <div style="width:40px; height:40px; border-radius:50%; background:var(--accent-gold); color:var(--bg-primary); display:flex; align-items:center; justify-content:center; flex-shrink:0">
                             <i class="fas fa-search"></i>
                         </div>
                         <div>

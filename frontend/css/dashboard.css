@@ -1459,3 +1459,32 @@
     border-top: 1px solid var(--border-subtle);
     background: var(--bg-secondary);
 }
+
+/* ═══ Additional Mobile / Tablet Responsive ═══ */
+@media (max-width: 768px) {
+    .dashboard-grid { gap: var(--space-3); }
+    .dashboard-row { gap: var(--space-3); }
+    .dashboard-card, .card { border-radius: var(--radius-lg); }
+    .card-header { padding: var(--space-3); }
+    .card-header h3 { font-size: var(--text-sm); }
+    .card-body { padding: var(--space-3); }
+    .chart-container { min-height: 200px; }
+
+    .filter-bar {
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+    }
+    .filter-chip { font-size: 0.7rem; padding: var(--space-1) var(--space-2); }
+
+    .insight-preview-title { font-size: var(--text-sm); }
+    .stat-card { padding: var(--space-3); }
+    .stat-value { font-size: var(--text-xl); }
+    .stat-label { font-size: var(--text-xs); }
+    .stat-icon { width: 40px; height: 40px; font-size: var(--text-base); }
+}
+
+@media (max-width: 480px) {
+    .dashboard-grid { gap: var(--space-2); margin-bottom: var(--space-3); }
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-label { text-align: center; }
+}

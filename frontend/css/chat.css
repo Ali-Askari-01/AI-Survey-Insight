@@ -497,14 +497,36 @@
 }
 .form-auto-save i { color: var(--success); }
 
+@media (max-width: 768px) {
+    .chat-container {
+        border-radius: var(--radius-lg);
+        margin: var(--space-2);
+    }
+    .chat-messages { padding: var(--space-3); }
+    .chat-message { max-width: 90%; }
+    .chat-input-area { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+    .chat-input { font-size: var(--text-sm); padding: 10px 14px; }
+    .form-question-card { padding: var(--space-4); }
+}
+
 @media (max-width: 640px) {
     .chat-container {
         border-radius: 0;
         height: calc(100vh - var(--topbar-height));
+        margin: 0;
     }
+    .chat-message { max-width: 95%; font-size: var(--text-sm); }
     .form-question-card {
-        padding: var(--space-5);
+        padding: var(--space-3);
     }
+    .chat-input-area { padding: var(--space-2); }
+}
+
+@media (max-width: 480px) {
+    .chat-header { padding: var(--space-2) var(--space-3); }
+    .chat-header h3 { font-size: var(--text-sm); }
+    .voice-btn { width: 40px; height: 40px; }
+    .chat-send-btn { width: 40px; height: 40px; }
 }
 
 /* ── Message Emoji Reactions ── */

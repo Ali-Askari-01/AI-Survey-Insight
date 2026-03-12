@@ -417,7 +417,7 @@ const ChatInterface = {
                 reportDiv.innerHTML = `
                     <div class="message-avatar"><i class="fas fa-robot"></i></div>
                     <div class="message-content" style="max-width:90%">
-                        <div class="message-bubble" style="background: white; border: 1px solid var(--border-light); padding: 0; overflow: hidden; border-radius: var(--radius-lg)">
+                        <div class="message-bubble" style="background: var(--bg-card); border: 1px solid var(--border-subtle); padding: 0; overflow: hidden; border-radius: var(--radius-lg)">
                             ${reportHTML}
                         </div>
                         <div class="message-time">${this.formatTime(new Date().toISOString())}</div>

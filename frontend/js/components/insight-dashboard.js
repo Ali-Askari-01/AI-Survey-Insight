@@ -248,7 +248,7 @@ const InsightDashboard = {
                 </div>
             </div>
             <div class="card stat-card">
-                <div class="stat-icon" style="background: var(--success-light, #dcfce7); color: var(--success)">
+                <div class="stat-icon" style="background: rgba(16,185,129,0.12); color: var(--success)">
                     <i class="fas fa-heart"></i>
                 </div>
                 <div class="stat-content">
@@ -257,7 +257,7 @@ const InsightDashboard = {
                 </div>
             </div>
             <div class="card stat-card">
-                <div class="stat-icon" style="background: var(--warning-light, #fef3c7); color: var(--warning)">
+                <div class="stat-icon" style="background: rgba(245,158,11,0.12); color: var(--warning)">
                     <i class="fas fa-tags"></i>
                 </div>
                 <div class="stat-content">
@@ -266,7 +266,7 @@ const InsightDashboard = {
                 </div>
             </div>
             <div class="card stat-card">
-                <div class="stat-icon" style="background: #ede9fe; color: #7c3aed">
+                <div class="stat-icon" style="background: rgba(139,92,246,0.12); color: #8b5cf6">
                     <i class="fas fa-lightbulb"></i>
                 </div>
                 <div class="stat-content">

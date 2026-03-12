@@ -67,19 +67,19 @@ const MySurveys = {
             <!-- Stats Row -->
             <div class="grid grid-4 gap-2 mb-3">
                 <div class="card stat-card">
-                    <div class="stat-icon" style="background:var(--primary-100);color:var(--primary-600)"><i class="fas fa-poll"></i></div>
+                    <div class="stat-icon" style="background:rgba(245,166,35,0.12);color:var(--accent-gold)"><i class="fas fa-poll"></i></div>
                     <div class="stat-content"><div class="stat-value">${this.surveys.length}</div><div class="stat-label">Total Surveys</div></div>
                 </div>
                 <div class="card stat-card">
-                    <div class="stat-icon" style="background:#dcfce7;color:var(--success)"><i class="fas fa-broadcast-tower"></i></div>
+                    <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:var(--success)"><i class="fas fa-broadcast-tower"></i></div>
                     <div class="stat-content"><div class="stat-value">${active.length}</div><div class="stat-label">Active</div></div>
                 </div>
                 <div class="card stat-card">
-                    <div class="stat-icon" style="background:#fef3c7;color:var(--warning)"><i class="fas fa-pencil-ruler"></i></div>
+                    <div class="stat-icon" style="background:rgba(245,158,11,0.12);color:var(--warning)"><i class="fas fa-pencil-ruler"></i></div>
                     <div class="stat-content"><div class="stat-value">${drafts.length}</div><div class="stat-label">Drafts</div></div>
                 </div>
                 <div class="card stat-card">
-                    <div class="stat-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-users"></i></div>
+                    <div class="stat-icon" style="background:rgba(139,92,246,0.12);color:#8b5cf6"><i class="fas fa-users"></i></div>
                     <div class="stat-content"><div class="stat-value">${this.surveys.reduce((a, s) => a + (s.respondent_count || 0), 0)}</div><div class="stat-label">Total Respondents</div></div>
                 </div>
             </div>
@@ -497,7 +497,7 @@ const MySurveys = {
         Helpers.openModal(`AI Analysis — ${survey?.title || 'Survey'}`, `
             <div style="padding:var(--space-4);text-align:center">
                 <div class="spinner" style="margin:0 auto var(--space-3)"></div>
-                <h3 style="color:var(--primary-600)"><i class="fas fa-brain"></i> Generating AI Analysis...</h3>
+                <h3 style="color:var(--accent-gold)"><i class="fas fa-brain"></i> Generating AI Analysis...</h3>
                 <p class="text-muted">Analyzing all interview transcripts. This may take 15-30 seconds.</p>
             </div>
         `);
@@ -541,7 +541,7 @@ const MySurveys = {
                     </div>
 
                     <!-- Executive Summary -->
-                    <div class="card mb-3" style="padding:var(--space-3);border-left:4px solid var(--primary-500);background:linear-gradient(135deg,#f0f4ff,#ede9fe)">
+                    <div class="card mb-3" style="padding:var(--space-3);border-left:4px solid var(--accent-gold);background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.08))">
                         <h4 style="margin:0 0 var(--space-2) 0;color:var(--primary-700)"><i class="fas fa-file-alt"></i> Executive Summary</h4>
                         <div style="font-size:0.9rem;line-height:1.7;white-space:pre-line">${Helpers.escapeHtml(a.executive_summary || '')}</div>
                     </div>
@@ -554,7 +554,7 @@ const MySurveys = {
                                 <div class="card mb-2" style="padding:var(--space-3);border-left:4px solid ${f.impact === 'high' ? 'var(--danger)' : f.impact === 'medium' ? 'var(--warning)' : 'var(--success)'}">
                                     <div class="flex justify-between align-center mb-1">
                                         <strong style="font-size:0.9rem">${i+1}. ${Helpers.escapeHtml(f.finding)}</strong>
-                                        <span class="badge" style="font-size:0.7rem;padding:2px 8px;background:${f.impact === 'high' ? '#fef2f2' : f.impact === 'medium' ? '#fef3c7' : '#dcfce7'};color:${f.impact === 'high' ? 'var(--danger)' : f.impact === 'medium' ? 'var(--warning)' : 'var(--success)'}">${f.impact} impact</span>
+                                        <span class="badge" style="font-size:0.7rem;padding:2px 8px;background:${f.impact === 'high' ? 'rgba(239,68,68,0.15)' : f.impact === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)'};color:${f.impact === 'high' ? 'var(--danger)' : f.impact === 'medium' ? 'var(--warning)' : 'var(--success)'};border-radius:var(--radius-sm)">${f.impact} impact</span>
                                     </div>
                                     <p style="font-size:0.85rem;color:var(--neutral-600);margin:0">${Helpers.escapeHtml(f.evidence || '')}</p>
                                 </div>
@@ -600,10 +600,10 @@ const MySurveys = {
                                 <div class="card mb-2" style="padding:var(--space-3)">
                                     <div class="flex justify-between align-center mb-1">
                                         <strong style="font-size:0.85rem">Q${i+1}. ${Helpers.escapeHtml((q.question || '').substring(0, 100))}</strong>
-                                        <span class="badge" style="font-size:0.7rem;padding:2px 6px;background:${q.sentiment === 'positive' ? '#dcfce7' : q.sentiment === 'negative' ? '#fef2f2' : '#fef3c7'};color:${q.sentiment === 'positive' ? 'var(--success)' : q.sentiment === 'negative' ? 'var(--danger)' : 'var(--warning)'}">${q.sentiment}</span>
+                                        <span class="badge" style="font-size:0.7rem;padding:2px 6px;background:${q.sentiment === 'positive' ? 'rgba(16,185,129,0.15)' : q.sentiment === 'negative' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)'};color:${q.sentiment === 'positive' ? 'var(--success)' : q.sentiment === 'negative' ? 'var(--danger)' : 'var(--warning)'};border-radius:var(--radius-sm)">${q.sentiment}</span>
                                     </div>
                                     <p style="font-size:0.85rem;color:var(--neutral-600);margin:0 0 4px 0">${Helpers.escapeHtml(q.response_pattern || '')}</p>
-                                    ${q.common_themes?.length > 0 ? `<div class="flex gap-1 flex-wrap">${q.common_themes.map(t => `<span class="badge" style="font-size:0.7rem;padding:2px 6px;background:var(--primary-100);color:var(--primary-600)">${Helpers.escapeHtml(t)}</span>`).join('')}</div>` : ''}
+                                    ${q.common_themes?.length > 0 ? `<div class="flex gap-1 flex-wrap">${q.common_themes.map(t => `<span class="badge" style="font-size:0.7rem;padding:2px 6px;background:rgba(99,102,241,0.15);color:var(--info)">${Helpers.escapeHtml(t)}</span>`).join('')}</div>` : ''}
                                 </div>
                             `).join('')}
                         </div>
@@ -614,7 +614,7 @@ const MySurveys = {
                         <h4 class="mb-2"><i class="fas fa-tags" style="color:#7c3aed"></i> Themes Discovered</h4>
                         <div class="flex gap-1 flex-wrap mb-3">
                             ${a.themes_discovered.map(t => `
-                                <span class="badge" style="padding:5px 12px;font-size:0.8rem;background:#ede9fe;color:#7c3aed;border-radius:12px">
+                                <span class="badge" style="padding:5px 12px;font-size:0.8rem;background:rgba(139,92,246,0.15);color:#8b5cf6;border-radius:12px">
                                     ${Helpers.escapeHtml(t.theme)} ${t.frequency ? `(${t.frequency})` : ''}
                                 </span>
                             `).join('')}
@@ -630,7 +630,7 @@ const MySurveys = {
                                     <div class="flex justify-between align-center mb-1">
                                         <strong style="font-size:0.9rem">${i+1}. ${Helpers.escapeHtml(r.title)}</strong>
                                         <div class="flex gap-1">
-                                            <span class="badge" style="font-size:0.7rem;padding:2px 6px;background:${r.priority === 'high' ? '#fef2f2;color:var(--danger)' : r.priority === 'medium' ? '#fef3c7;color:var(--warning)' : '#dcfce7;color:var(--success)'}">${r.priority}</span>
+                                            <span class="badge" style="font-size:0.7rem;padding:2px 6px;background:${r.priority === 'high' ? 'rgba(239,68,68,0.15);color:var(--danger)' : r.priority === 'medium' ? 'rgba(245,158,11,0.15);color:var(--warning)' : 'rgba(16,185,129,0.15);color:var(--success)'};border-radius:var(--radius-sm)">${r.priority}</span>
                                             ${r.category ? `<span class="badge" style="font-size:0.7rem;padding:2px 6px;background:var(--neutral-100);color:var(--neutral-600)">${r.category}</span>` : ''}
                                         </div>
                                     </div>
@@ -951,7 +951,7 @@ const MySurveys = {
                     ${aiReport ? `
                     <!-- AI Analysis Summary -->
                     <div class="card mb-3" style="padding:var(--space-3);border-left:4px solid var(--primary-500);background:var(--primary-50,#f0f4ff)">
-                        <h4 style="margin:0 0 var(--space-2) 0;color:var(--primary-600)"><i class="fas fa-brain"></i> AI Analysis</h4>
+                        <h4 style="margin:0 0 var(--space-2) 0;color:var(--accent-gold)"><i class="fas fa-brain"></i> AI Analysis</h4>
                         ${aiReport.executive_summary ? `<p style="font-size:0.9rem;line-height:1.6;margin-bottom:var(--space-2)">${Helpers.escapeHtml(aiReport.executive_summary)}</p>` : ''}
                         ${aiReport.overall_analysis ? `
                             <div class="grid grid-3 gap-2 mt-2">
@@ -994,11 +994,11 @@ const MySurveys = {
                         ${entries.map(e => `
                             <div style="margin-bottom:var(--space-3);display:flex;flex-direction:${e.role === 'ai' ? 'row' : 'row-reverse'};gap:var(--space-2)">
                                 <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
-                                    background:${e.role === 'ai' ? 'var(--primary-100)' : '#dcfce7'};color:${e.role === 'ai' ? 'var(--primary-600)' : 'var(--success)'}">
+                                    background:${e.role === 'ai' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)'};color:${e.role === 'ai' ? 'var(--info)' : 'var(--success)'}">
                                     <i class="fas ${e.role === 'ai' ? 'fa-robot' : 'fa-user'}"></i>
                                 </div>
                                 <div style="max-width:80%;padding:var(--space-2) var(--space-3);border-radius:var(--radius-lg);
-                                    background:${e.role === 'ai' ? 'white' : 'var(--primary-500)'};color:${e.role === 'ai' ? 'inherit' : 'white'};
+                                    background:${e.role === 'ai' ? 'var(--bg-elevated)' : 'var(--accent-gold)'};color:${e.role === 'ai' ? 'var(--text-primary)' : 'var(--bg-primary)'};
                                     box-shadow:0 1px 3px rgba(0,0,0,0.08)">
                                     <div style="font-size:0.9rem">${Helpers.escapeHtml(e.message)}</div>
                                     <div style="font-size:0.7rem;opacity:0.6;margin-top:4px">${e.timestamp || ''}</div>
@@ -1126,7 +1126,7 @@ const MySurveys = {
                 if (resultDiv) {
                     resultDiv.hidden = false;
                     resultDiv.innerHTML = `
-                        <div class="card" style="padding:var(--space-3);border-left:4px solid var(--warning);background:#fefce8">
+                        <div class="card" style="padding:var(--space-3);border-left:4px solid var(--warning);background:rgba(245,158,11,0.08)">
                             <p style="font-size:0.85rem;margin:0 0 8px"><i class="fas fa-info-circle" style="color:var(--warning)"></i> <strong>SMTP not configured</strong> — opening your email client instead.</p>
                             <a href="${result.mailto_link}" class="btn btn-secondary btn-sm" target="_blank">
                                 <i class="fas fa-external-link-alt"></i> Open Email Client
@@ -1143,7 +1143,7 @@ const MySurveys = {
                 if (resultDiv) {
                     resultDiv.hidden = false;
                     resultDiv.innerHTML = `
-                        <div class="card" style="padding:var(--space-3);border-left:4px solid var(--success);background:#f0fdf4">
+                        <div class="card" style="padding:var(--space-3);border-left:4px solid var(--success);background:rgba(16,185,129,0.08)">
                             <p style="font-size:0.85rem;margin:0"><i class="fas fa-check-circle" style="color:var(--success)"></i> <strong>${msg}</strong></p>
                             ${result.failed > 0 ? `<p class="text-muted" style="font-size:0.8rem;margin:4px 0 0">${result.failed} failed — check email addresses.</p>` : ''}
                         </div>
@@ -1160,7 +1160,7 @@ const MySurveys = {
     confirmDeleteSurvey(surveyId, title) {
         Helpers.openModal('Delete Survey', `
             <div style="padding:var(--space-4);text-align:center">
-                <div style="width:64px;height:64px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-3)">
+                <div style="width:64px;height:64px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-3)">
                     <i class="fas fa-exclamation-triangle" style="font-size:1.8rem;color:var(--danger)"></i>
                 </div>
                 <h3 style="margin:0 0 var(--space-2) 0;color:var(--danger)">Are you sure?</h3>
@@ -1182,7 +1182,7 @@ const MySurveys = {
     _secondConfirmDelete(surveyId, title) {
         document.querySelector('.modal-body').innerHTML = `
             <div style="padding:var(--space-4);text-align:center">
-                <div style="width:64px;height:64px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-3)">
+                <div style="width:64px;height:64px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-3)">
                     <i class="fas fa-skull-crossbones" style="font-size:1.8rem;color:var(--danger)"></i>
                 </div>
                 <h3 style="margin:0 0 var(--space-2) 0;color:var(--danger)">Final Confirmation</h3>
@@ -1261,7 +1261,7 @@ const MySurveys = {
     .report-header h1 { font-size:1.8rem; color:#6366f1; margin-bottom:4px; }
     .report-header p { color:#64748b; font-size:0.9rem; }
     .stats-row { display:flex; gap:16px; margin-bottom:24px; }
-    .stat-box { flex:1; text-align:center; padding:16px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; }
+    .stat-box { flex:1; text-align:center; padding:16px; background:var(--bg-elevated); border-radius:8px; border:1px solid var(--border-subtle); color:var(--text-primary); }
     .stat-box .value { font-size:1.5rem; font-weight:700; }
     .stat-box .label { font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
     .section { margin-bottom:24px; }
@@ -1270,12 +1270,12 @@ const MySurveys = {
     .finding { padding:12px 16px; margin-bottom:8px; border-left:4px solid #6366f1; background:#fafafa; border-radius:0 6px 6px 0; }
     .finding .impact { display:inline-block; font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:600; }
     .impact-high { background:#fef2f2; color:#ef4444; }
-    .impact-medium { background:#fef3c7; color:#f59e0b; }
-    .impact-low { background:#dcfce7; color:#10b981; }
+    .impact-medium { background:rgba(245,158,11,0.15); color:#f59e0b; }
+    .impact-low { background:rgba(16,185,129,0.15); color:#10b981; }
     .pain-point { padding:10px 16px; margin-bottom:6px; border-left:3px solid #ef4444; background:#fff5f5; border-radius:0 6px 6px 0; }
     .positive { padding:10px 16px; margin-bottom:6px; border-left:3px solid #10b981; background:#f0fdf4; border-radius:0 6px 6px 0; }
     .recommendation { padding:12px 16px; margin-bottom:8px; border-left:4px solid #8b5cf6; background:#faf5ff; border-radius:0 6px 6px 0; }
-    .theme-tag { display:inline-block; padding:4px 12px; margin:4px; background:#ede9fe; color:#7c3aed; border-radius:12px; font-size:0.8rem; }
+    .theme-tag { display:inline-block; padding:4px 12px; margin:4px; background:rgba(139,92,246,0.15); color:#8b5cf6; border-radius:12px; font-size:0.8rem; }
     .quote { font-style:italic; color:#64748b; font-size:0.85rem; margin-top:4px; }
     .footer { text-align:center; margin-top:40px; padding-top:16px; border-top:2px solid #e2e8f0; color:#94a3b8; font-size:0.8rem; }
     @media print {

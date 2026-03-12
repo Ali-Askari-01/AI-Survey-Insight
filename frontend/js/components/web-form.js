@@ -321,8 +321,8 @@ const WebForm = {
 
         let html = `
             <div class="card" style="overflow:hidden; border: 1px solid var(--border-light)">
-                <div style="padding: var(--space-4); background: linear-gradient(135deg, var(--primary-500), var(--primary-700)); color: white;">
-                    <h3 style="color:white; margin-bottom: 4px"><i class="fas fa-file-alt"></i> Interview Transcript & Report</h3>
+                <div style="padding: var(--space-4); background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dim)); color: var(--bg-primary);">
+                    <h3 style="color:var(--bg-primary); margin-bottom: 4px"><i class="fas fa-file-alt"></i> Interview Transcript & Report</h3>
                     <p style="opacity: 0.85; font-size: 0.85rem">${ts.total_questions_asked || 0} questions · ${ts.total_responses || 0} responses · ${ts.duration_estimate || 'N/A'}</p>
                 </div>
         `;
@@ -330,7 +330,7 @@ const WebForm = {
         if (execSummary) {
             html += `
                 <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-light)">
-                    <h4 style="margin-bottom: var(--space-2)"><i class="fas fa-align-left" style="color:var(--primary-500)"></i> Executive Summary</h4>
+                    <h4 style="margin-bottom: var(--space-2)"><i class="fas fa-align-left" style="color:var(--accent-gold)"></i> Executive Summary</h4>
                     <p style="line-height:1.7; color: var(--text-secondary)">${Helpers.escapeHtml(execSummary)}</p>
                 </div>
             `;
@@ -338,14 +338,14 @@ const WebForm = {
 
         if (qSummaries.length > 0) {
             html += `<div style="padding: var(--space-4); border-bottom: 1px solid var(--border-light)">`;
-            html += `<h4 style="margin-bottom: var(--space-3)"><i class="fas fa-clipboard-list" style="color:var(--primary-500)"></i> Question-by-Question Summary</h4>`;
+            html += `<h4 style="margin-bottom: var(--space-3)"><i class="fas fa-clipboard-list" style="color:var(--accent-gold)"></i> Question-by-Question Summary</h4>`;
             qSummaries.forEach((qs, i) => {
                 const sentColor = qs.sentiment === 'positive' ? 'var(--success)' : qs.sentiment === 'negative' ? 'var(--danger)' : 'var(--warning)';
                 html += `
                     <div style="margin-bottom: var(--space-3); padding: var(--space-3); background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 3px solid ${sentColor}">
                         <p style="font-weight:600; font-size:0.9rem; margin-bottom: 4px">Q${i + 1}: ${Helpers.escapeHtml(qs.question || '')}</p>
                         <p style="color: var(--text-secondary); font-size:0.85rem">${Helpers.escapeHtml(qs.response_summary || '')}</p>
-                        ${qs.key_insight ? `<p style="font-size:0.8rem; color: var(--primary-500); margin-top: 4px"><i class="fas fa-lightbulb"></i> ${Helpers.escapeHtml(qs.key_insight)}</p>` : ''}
+                        ${qs.key_insight ? `<p style="font-size:0.8rem; color: var(--accent-gold); margin-top: 4px"><i class="fas fa-lightbulb"></i> ${Helpers.escapeHtml(qs.key_insight)}</p>` : ''}
                     </div>
                 `;
             });
@@ -354,7 +354,7 @@ const WebForm = {
 
         if (analysis.main_pain_points?.length || analysis.positive_highlights?.length || analysis.suggestions_made?.length) {
             html += `<div style="padding: var(--space-4); border-bottom: 1px solid var(--border-light)">`;
-            html += `<h4 style="margin-bottom: var(--space-3)"><i class="fas fa-chart-pie" style="color:var(--primary-500)"></i> Analysis</h4>`;
+            html += `<h4 style="margin-bottom: var(--space-3)"><i class="fas fa-chart-pie" style="color:var(--accent-gold)"></i> Analysis</h4>`;
 
             if (analysis.respondent_sentiment) {
                 html += `<p style="margin-bottom: var(--space-2)"><strong>Overall Sentiment:</strong> ${Helpers.escapeHtml(analysis.respondent_sentiment)}</p>`;

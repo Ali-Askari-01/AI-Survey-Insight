@@ -15,6 +15,7 @@
     /* Accent — Amber/Gold */
     --accent-gold:      #F5A623;
     --accent-gold-dim:  #C4841C;
+    --accent-gold-hover: #D4911E;
     --accent-gold-glow: rgba(245, 166, 35, 0.25);
 
     /* Aurora Gradient */
@@ -27,6 +28,7 @@
     --text-primary:   #FAF7F2;
     --text-secondary: #A3ADB8;
     --text-tertiary:  #5C6778;
+    --text-muted:     #5C6778;
     --text-inverse:   #FAF7F2;
     --text-link:      #F5A623;
 

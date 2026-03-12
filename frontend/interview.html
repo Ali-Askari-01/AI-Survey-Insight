@@ -205,9 +205,20 @@
         .toast-warning { border-left: 4px solid var(--warning); }
 
         /* ─── Mobile Responsive ─── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .container { max-width: 100%; }
+            .card { border-radius: 16px; }
+            .card-header { padding: 24px 20px; }
+            .card-header h1 { font-size: 1.3rem; }
+            .card-body { padding: 24px 20px; }
+            .chat-container { height: 70vh; }
+        }
+
         @media (max-width: 640px) {
             body { padding: 8px; align-items: flex-start; padding-top: 16px; }
             .container { max-width: 100%; }
+            .card { border-radius: 14px; }
             .card-header { padding: 20px 16px; }
             .card-header h1 { font-size: 1.2rem; }
             .card-body { padding: 20px 16px; }
@@ -231,7 +242,10 @@
 
         @media (max-width: 380px) {
             .card-header h1 { font-size: 1rem; }
+            .card-header p { font-size: 0.8rem; }
             .webform-question h3 { font-size: 0.95rem; }
+            .msg { font-size: 0.85rem; padding: 8px 12px; }
+            .btn { font-size: 0.85rem; padding: 10px 16px; }
         }
     </style>
 </head>

@@ -65,12 +65,12 @@ const Charts = {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 11 } } },
-                    tooltip: { backgroundColor: '#1f2937', titleFont: { size: 12 }, bodyFont: { size: 11 }, padding: 12, cornerRadius: 8 }
+                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 11 }, color: '#A3ADB8' } },
+                    tooltip: { backgroundColor: '#1E2940', titleFont: { size: 12 }, bodyFont: { size: 11 }, padding: 12, cornerRadius: 8, titleColor: '#FAF7F2', bodyColor: '#A3ADB8' }
                 },
                 scales: {
-                    x: { ticks: { maxTicksLimit: 10, font: { size: 10 } }, grid: { display: false } },
-                    y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+                    x: { ticks: { maxTicksLimit: 10, font: { size: 10 }, color: '#A3ADB8' }, grid: { display: false } },
+                    y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { font: { size: 10 }, color: '#A3ADB8' } }
                 }
             }
         });
@@ -107,7 +107,7 @@ const Charts = {
             },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '70%',
-                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } } }
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 }, color: '#A3ADB8' } } }
             }
         });
     },
@@ -126,7 +126,7 @@ const Charts = {
         if (valuesOpt !== undefined) {
             labels = labelsOrThemes;
             data = valuesOpt;
-            colors = data.map(() => '#6366f1cc');
+            colors = data.map(() => '#F5A623cc');
         } else {
             labels = labelsOrThemes.map(t => t.name);
             data = labelsOrThemes.map(t => t.frequency || t.value || t.mention_count || 0);
@@ -140,8 +140,8 @@ const Charts = {
                 responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
-                    y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                    x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { font: { size: 10 }, color: '#A3ADB8' } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#A3ADB8' } }
                 }
             }
         });
@@ -174,14 +174,14 @@ const Charts = {
             data: {
                 labels,
                 datasets: [
-                    { label: 'Responses', data: d1, backgroundColor: '#6366f1cc', borderRadius: 6 },
+                    { label: 'Responses', data: d1, backgroundColor: '#F5A623cc', borderRadius: 6 },
                     { label: 'Completion %', data: d2, backgroundColor: '#22c55ecc', borderRadius: 6 }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } } },
-                scales: { x: { grid: { display: false } }, y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } } }
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 }, color: '#A3ADB8' } } },
+                scales: { x: { grid: { display: false }, ticks: { color: '#A3ADB8' } }, y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { font: { size: 10 }, color: '#A3ADB8' } } }
             }
         });
     },
@@ -218,14 +218,14 @@ const Charts = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true } }
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true, color: '#A3ADB8' } }
                 },
                 scales: {
                     r: {
                         min: 0, max: 100,
                         ticks: { display: false },
-                        grid: { color: '#e5e7eb' },
-                        pointLabels: { font: { size: 10 } }
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { font: { size: 10 }, color: '#A3ADB8' }
                     }
                 }
             }

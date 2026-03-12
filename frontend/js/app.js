@@ -337,7 +337,7 @@ const App = {
         page.innerHTML = `
             <div class="dashboard stagger-children">
                 <!-- Welcome Banner -->
-                <div class="card mb-3" style="background: linear-gradient(135deg, var(--primary-500), var(--primary-700)); color: white; padding: var(--space-4)">
+                <div class="card mb-3" style="background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dim)); color: var(--bg-primary); padding: var(--space-4)">
                     <h2 style="margin:0">Welcome to AI Survey Insights</h2>
                     <p style="opacity:0.9;margin-top:var(--space-1)">Your multi-channel feedback engine is ready. Here's an overview of your research.</p>
                 </div>
@@ -345,19 +345,19 @@ const App = {
                 <!-- Quick Stats -->
                 <div class="grid grid-4 gap-2 mb-3" id="dash-stats">
                     <div class="card stat-card">
-                        <div class="stat-icon" style="background:var(--primary-100);color:var(--primary-600)"><i class="fas fa-poll"></i></div>
+                        <div class="stat-icon" style="background:rgba(245,166,35,0.12);color:var(--accent-gold)"><i class="fas fa-poll"></i></div>
                         <div class="stat-content"><div class="stat-value" id="dash-surveys">${Helpers.skeleton(1, 'stat')}</div><div class="stat-label">Active Surveys</div></div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon" style="background:#dcfce7;color:var(--success)"><i class="fas fa-comments"></i></div>
+                        <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:var(--success)"><i class="fas fa-comments"></i></div>
                         <div class="stat-content"><div class="stat-value" id="dash-responses">${Helpers.skeleton(1, 'stat')}</div><div class="stat-label">Total Responses</div></div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon" style="background:#fef3c7;color:var(--warning)"><i class="fas fa-lightbulb"></i></div>
+                        <div class="stat-icon" style="background:rgba(245,158,11,0.12);color:var(--warning)"><i class="fas fa-lightbulb"></i></div>
                         <div class="stat-content"><div class="stat-value" id="dash-insights">${Helpers.skeleton(1, 'stat')}</div><div class="stat-label">Insights</div></div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-check-double"></i></div>
+                        <div class="stat-icon" style="background:rgba(139,92,246,0.12);color:#8b5cf6"><i class="fas fa-check-double"></i></div>
                         <div class="stat-content"><div class="stat-value" id="dash-recs">${Helpers.skeleton(1, 'stat')}</div><div class="stat-label">Recommendations</div></div>
                     </div>
                 </div>
