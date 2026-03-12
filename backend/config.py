@@ -30,6 +30,7 @@ JWT_EXPIRATION_HOURS = 24
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
+FOUNDER_EMAIL = os.environ.get("FOUNDER_EMAIL", "aliaskari.7483@gmail.com")
 
 if not GOOGLE_CLIENT_ID:
     print("⚠️  WARNING: GOOGLE_CLIENT_ID not set. Google Sign-In will not work.")

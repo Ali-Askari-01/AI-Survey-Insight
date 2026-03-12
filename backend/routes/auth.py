@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from ..database import get_db
 from ..models import UserRegister, UserLogin
 from ..auth import hash_password, verify_password, create_token, get_current_user, require_role, validate_password_strength
-from ..config import MAX_FAILED_LOGIN_ATTEMPTS, FAILED_LOGIN_LOCKOUT_MINUTES, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+from ..config import MAX_FAILED_LOGIN_ATTEMPTS, FAILED_LOGIN_LOCKOUT_MINUTES, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, FOUNDER_EMAIL
 from datetime import datetime
 import re
 import time
@@ -22,6 +22,13 @@ security_logger = logging.getLogger("security")
 # ── Failed Login Tracker (in-memory, per email) ──
 _failed_logins: dict = {}  # email -> {"count": int, "first_failure": float, "locked_until": float}
 _failed_lock = threading.Lock()
+
+
+def _is_founder_email(email: str) -> bool:
+    """Return True when email matches configured founder email."""
+    if not email or not FOUNDER_EMAIL:
+        return False
+    return email.strip().lower() == FOUNDER_EMAIL.strip().lower()
 
 
 def _check_login_lockout(email: str) -> str | None:
@@ -81,8 +88,8 @@ def register(user: UserRegister):
             raise HTTPException(status_code=409, detail="Email already registered")
 
         password_hash = hash_password(user.password)
-        # Force role to 'pm' — prevent role escalation attacks
-        safe_role = "pm"
+        # Force role to pm except for configured founder email.
+        safe_role = "founder" if _is_founder_email(user.email) else "pm"
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO users (name, email, password_hash, role)
@@ -137,6 +144,14 @@ def login(credentials: UserLogin):
 
         # Successful login — clear failed attempts
         _clear_failed_logins(credentials.email)
+
+        # Enforce founder role for configured founder email.
+        if _is_founder_email(user_dict["email"]) and user_dict["role"] != "founder":
+            user_dict["role"] = "founder"
+            conn.execute(
+                "UPDATE users SET role = ?, updated_at = ? WHERE id = ?",
+                ("founder", datetime.now().isoformat(), user_dict["id"]),
+            )
 
         # Update last login
         conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now().isoformat(), user_dict["id"]))
@@ -350,17 +365,23 @@ def google_callback(request: Request, code: str = None, error: str = None, state
             )
             conn.commit()
             user_id = user_dict["id"]
-            role = user_dict["role"]
+            role = "founder" if _is_founder_email(email) else user_dict["role"]
+            if role != user_dict["role"]:
+                conn.execute(
+                    "UPDATE users SET role = ?, updated_at = ? WHERE id = ?",
+                    (role, datetime.now().isoformat(), user_dict["id"]),
+                )
+                conn.commit()
         else:
             # Auto-register new Google user
+            role = "founder" if _is_founder_email(email) else "pm"
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO users (name, email, password_hash, role, avatar_url, last_login)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (name, email, "google_oauth", "pm", avatar_url, datetime.now().isoformat()))
+            """, (name, email, "google_oauth", role, avatar_url, datetime.now().isoformat()))
             conn.commit()
             user_id = cursor.lastrowid
-            role = "pm"
             security_logger.info(f"GOOGLE_REGISTER user_id={user_id} email={email}")
     finally:
         conn.close()
