@@ -487,3 +487,40 @@
         max-height: 60vh;
     }
 }
+
+
+/* Role-based UI visibility */
+.founder-only {
+    display: none; /* Hidden by default, shown via JavaScript for founder/admin */
+}
+
+body[data-role="founder"] .founder-only,
+body[data-role="admin"] .founder-only {
+    display: block;
+}
+
+/* Analytics dashboard specific styles */
+.analytics-dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-4);
+}
+
+.analytics-header {
+    background: linear-gradient(135deg, var(--accent-gold) 0%, #E09000 100%);
+    color: white;
+    padding: 32px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    box-shadow: 0 10px 30px rgba(26,26,46,0.1);
+}
+
+/* Ensure analytics page is properly configured */
+#page-analytics {
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+#page-analytics.active {
+    display: block !important;
+}

@@ -543,6 +543,155 @@
         function completeInterview() {
             document.getElementById('interview-screen').style.display = 'none';
             document.getElementById('completion-content').style.display = 'block';
+            
+            // Show experience feedback widget after 2 seconds
+            setTimeout(() => {
+                showExperienceWidget();
+            }, 2000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EXPERIENCE FEEDBACK WIDGET (30-second max for respondents)
+        // ═══════════════════════════════════════════════════════════════
+        
+        function showExperienceWidget() {
+            if (document.getElementById('experienceWidget')) return; // Already shown
+            
+            const sessionId = surveyData.session_id || 'session_' + Date.now();
+            const surveyId = surveyData.survey_id || 1;
+            
+            const widgetHTML = `
+                <div class="experience-widget" id="experienceWidget" style="
+                    position: fixed; bottom: 20px; right: 20px; background: white;
+                    border: 1px solid var(--border); border-radius: var(--radius-xl);
+                    padding: 20px; width: 280px; max-width: calc(100vw - 40px);
+                    box-shadow: var(--shadow-lg); z-index: 9999;
+                    transform: translateX(320px); transition: transform 0.3s ease;
+                ">
+                    <h4 style="margin: 0 0 12px; color: var(--text-dark); font-size: 0.95rem;">
+                        How was your audio experience? 
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">(30 sec)</span>
+                    </h4>
+                    
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;" id="quickRating">
+                        <button class="quick-rating-btn" data-rating="1" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😞</button>
+                        <button class="quick-rating-btn" data-rating="2" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😐</button>
+                        <button class="quick-rating-btn" data-rating="3" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">🙂</button>
+                        <button class="quick-rating-btn" data-rating="4" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😊</button>
+                        <button class="quick-rating-btn" data-rating="5" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😍</button>
+                    </div>
+
+                    <textarea id="experienceComment" placeholder="Quick feedback (optional)..." style="
+                        width: 100%; background: var(--cream); border: 1px solid var(--border);
+                        border-radius: 8px; padding: 8px 10px; font-family: inherit;
+                        font-size: 0.8rem; resize: none; height: 50px; margin-bottom: 12px;
+                    "></textarea>
+
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <button onclick="closeExperienceWidget()" style="
+                            background: transparent; border: none; color: var(--text-muted);
+                            padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
+                        ">Skip</button>
+                        <button onclick="submitExperience('${sessionId}', ${surveyId})" style="
+                            background: var(--gold); border: none; color: white;
+                            padding: 6px 12px; border-radius: 6px; font-size: 0.75rem;
+                            cursor: pointer; font-weight: 500;
+                        ">Submit</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', widgetHTML);
+            
+            // Show widget with animation
+            requestAnimationFrame(() => {
+                document.getElementById('experienceWidget').style.transform = 'translateX(0)';
+            });
+
+            // Setup rating buttons
+            document.querySelectorAll('.quick-rating-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.quick-rating-btn').forEach(b => {
+                        b.style.background = 'var(--cream)';
+                        b.style.borderColor = 'var(--border)';
+                    });
+                    btn.style.background = 'var(--gold)';
+                    btn.style.borderColor = 'var(--gold)';
+                    btn.classList.add('selected');
+                });
+            });
+
+            // Auto-hide after 30 seconds
+            setTimeout(closeExperienceWidget, 30000);
+        }
+
+        async function submitExperience(sessionId, surveyId) {
+            const selectedRating = document.querySelector('.quick-rating-btn.selected');
+            const rating = selectedRating ? parseInt(selectedRating.dataset.rating) : null;
+            const comment = document.getElementById('experienceComment').value.trim();
+
+            try {
+                const response = await fetch('/api/feedback/respondent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        survey_id: parseInt(surveyId),
+                        overall_rating: rating,
+                        quick_feedback: comment || null,
+                        completion_time: Date.now() - (window.surveyStartTime || Date.now()),
+                        channel_used: 'audio'
+                    })
+                });
+
+                if (response.ok) {
+                    showExperienceThankYou();
+                } else {
+                    console.warn('Experience feedback submission failed');
+                    closeExperienceWidget();
+                }
+            } catch (error) {
+                console.error('Experience submission error:', error);
+                closeExperienceWidget();
+            }
+        }
+
+        function showExperienceThankYou() {
+            const widget = document.getElementById('experienceWidget');
+            if (widget) {
+                widget.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="color: var(--gold); font-size: 2rem; margin-bottom: 8px;">✓</div>
+                        <p style="color: var(--text-dark); margin: 0; font-size: 0.9rem;">Thank you!</p>
+                    </div>
+                `;
+                setTimeout(closeExperienceWidget, 2000);
+            }
+        }
+
+        function closeExperienceWidget() {
+            const widget = document.getElementById('experienceWidget');
+            if (widget) {
+                widget.style.transform = 'translateX(320px)';
+                setTimeout(() => widget.remove(), 300);
+            }
         }
         
         // Utility Functions
@@ -565,7 +714,12 @@
         }
         
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initAudioInterview);
+        document.addEventListener('DOMContentLoaded', () => {
+            // Track survey start time for completion duration
+            window.surveyStartTime = Date.now();
+            
+            initAudioInterview();
+        });
     </script>
 </body>
 </html>

@@ -18,7 +18,7 @@ from typing import List
 from .database import init_db
 from .auth import get_current_user, decode_token
 from .routes import survey, interview, insights, reports, notifications, auth
-from .routes import ai_processing, fast_interview
+from .routes import ai_processing, fast_interview, analytics
 from .routes import infrastructure as infra_routes
 from .routes import data_architecture as data_arch_routes
 from .routes import performance as perf_routes
@@ -149,6 +149,7 @@ app.include_router(insights.router)
 app.include_router(reports.router)
 app.include_router(notifications.router)
 app.include_router(ai_processing.router)
+app.include_router(analytics.router, prefix="/api")
 app.include_router(infra_routes.router)
 app.include_router(data_arch_routes.router)
 app.include_router(perf_routes.router)

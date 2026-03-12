@@ -13,7 +13,8 @@ const App = {
         'survey-designer': { title: 'Survey Designer', icon: 'fa-magic', component: () => SurveyDesigner },
         'my-surveys': { title: 'My Surveys', icon: 'fa-folder-open', component: () => MySurveys },
         'insights': { title: 'Insights', icon: 'fa-chart-bar', component: () => InsightDashboard },
-        'reports': { title: 'Reports', icon: 'fa-file-alt', component: () => ReportPanel }
+        'reports': { title: 'Reports', icon: 'fa-file-alt', component: () => ReportPanel },
+        'analytics': { title: 'Analytics Dashboard', icon: 'fa-chart-bar', component: () => new AnalyticsDashboard() }
     },
     activeComponent: null,
 
@@ -219,6 +220,16 @@ const App = {
             roleSelect.value = this.currentUser.role;
             document.body.setAttribute('data-role', this.currentUser.role);
         }
+
+        // Show/hide founder-only navigation items
+        const founderOnlyItems = document.querySelectorAll('.founder-only');
+        founderOnlyItems.forEach(item => {
+            if (this.currentUser && (this.currentUser.role === 'founder' || this.currentUser.role === 'admin')) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
     },
 
     /* ── Initialize App (after login) ─────────── */
@@ -301,6 +312,9 @@ const App = {
         } else if (page === 'dashboard') {
             this.activeComponent = null;
             this.renderDashboard();
+        } else if (page === 'analytics') {
+            // Analytics component is initialized through the component system above
+            console.log('Analytics dashboard loaded');
         }
     },
 

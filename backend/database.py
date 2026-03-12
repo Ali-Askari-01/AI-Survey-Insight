@@ -801,6 +801,128 @@ def init_db():
     except Exception:
         pass  # Column already exists
 
+    # ═══════════════════════════════════════════════════
+    # ANALYTICS & FEEDBACK SYSTEM
+    # ═══════════════════════════════════════════════════
+    
+    # Website Visit Tracking
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS website_analytics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            session_id TEXT,
+            page_url TEXT NOT NULL,
+            page_title TEXT,
+            referrer TEXT,
+            user_agent TEXT,
+            ip_address TEXT,
+            country TEXT,
+            device_type TEXT,
+            browser TEXT,
+            time_on_page INTEGER DEFAULT 0,
+            exit_page INTEGER DEFAULT 0,
+            conversion_event TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_created ON website_analytics(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_user ON website_analytics(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_session ON website_analytics(session_id)")
+
+    # User Feedback about the Software
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            feedback_type TEXT DEFAULT 'general',
+            rating INTEGER,
+            title TEXT,
+            description TEXT NOT NULL,
+            feature_area TEXT,
+            priority TEXT DEFAULT 'medium',
+            status TEXT DEFAULT 'open',
+            browser_info TEXT,
+            url_context TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_feedback_type ON user_feedback(feedback_type)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_feedback_status ON user_feedback(status)")
+
+    # Respondent Experience Feedback (30-second max)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS respondent_experience (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            survey_id INTEGER NOT NULL,
+            respondent_id INTEGER,
+            overall_rating INTEGER,
+            easiness_rating INTEGER,
+            clarity_rating INTEGER,
+            time_rating INTEGER,
+            technical_issues INTEGER DEFAULT 0,
+            would_recommend INTEGER,
+            quick_feedback TEXT,
+            improvement_suggestion TEXT,
+            completion_time INTEGER,
+            device_type TEXT,
+            channel_used TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES interview_sessions(session_id),
+            FOREIGN KEY (survey_id) REFERENCES surveys(id),
+            FOREIGN KEY (respondent_id) REFERENCES respondents(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_resp_exp_survey ON respondent_experience(survey_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_resp_exp_session ON respondent_experience(session_id)")
+
+    # Survey Feature Usage Analytics
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feature_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            survey_id INTEGER,
+            feature_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            metadata_json TEXT DEFAULT '{}',
+            session_duration INTEGER,
+            success INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (survey_id) REFERENCES surveys(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_feature_usage_feature ON feature_usage(feature_name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_feature_usage_user ON feature_usage(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_feature_usage_created ON feature_usage(created_at)")
+
+    # Daily Analytics Summary (for dashboard efficiency)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date_recorded DATE UNIQUE NOT NULL,
+            total_users INTEGER DEFAULT 0,
+            active_users INTEGER DEFAULT 0,
+            new_signups INTEGER DEFAULT 0,
+            surveys_created INTEGER DEFAULT 0,
+            surveys_published INTEGER DEFAULT 0,
+            responses_collected INTEGER DEFAULT 0,
+            page_views INTEGER DEFAULT 0,
+            unique_visitors INTEGER DEFAULT 0,
+            avg_session_duration REAL DEFAULT 0,
+            conversion_rate REAL DEFAULT 0,
+            user_feedback_count INTEGER DEFAULT 0,
+            avg_user_satisfaction REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON daily_metrics(date_recorded)")
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")
