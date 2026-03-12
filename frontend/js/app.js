@@ -210,29 +210,8 @@ const App = {
     },
 
     updateUserUI() {
-        // Update sidebar footer with user info
-        const footer = document.querySelector('.sidebar-footer');
-        if (footer && this.currentUser) {
-            const initials = this.currentUser.name ? this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
-            const roleName = { founder: 'Founder', pm: 'Product Manager', designer: 'Designer', engineer: 'Engineer', respondent: 'Respondent', executive: 'Executive', other: this.customRoleLabel || 'Other' };
-            const userInfoHTML = `
-                <div class="user-info">
-                    <div class="user-avatar">${initials}</div>
-                    <div class="user-details">
-                        <div class="user-name">${Helpers.escapeHtml(this.currentUser.name)}</div>
-                        <div class="user-role">${roleName[this.currentUser.role] || this.currentUser.role}</div>
-                    </div>
-                    <button class="btn-logout" onclick="App.logout()" title="Sign out"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-            `;
-            // Insert before role selector or replace existing
-            const existing = footer.querySelector('.user-info');
-            if (existing) {
-                existing.outerHTML = userInfoHTML;
-            } else {
-                footer.insertAdjacentHTML('afterbegin', userInfoHTML);
-            }
-        }
+        // Update sidebar footer with user info - DISABLED by user request
+        // No user profile display needed
 
         // Set role selector to match user role
         const roleSelect = document.getElementById('role-select');
