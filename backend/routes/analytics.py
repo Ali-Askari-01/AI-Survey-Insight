@@ -275,75 +275,156 @@ async def get_dashboard_overview(
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
+
+    def _default_overview_payload() -> dict:
+        return {
+            "period_days": days,
+            "traffic": {
+                "page_views": 0,
+                "unique_sessions": 0,
+                "logged_in_users": 0,
+                "avg_time_on_page": 0,
+                "unique_visitors": 0
+            },
+            "users": {
+                "total_users": 0,
+                "active_users": 0,
+                "new_signups": 0
+            },
+            "surveys": {
+                "surveys_created": 0,
+                "surveys_published": 0,
+                "responses_collected": 0,
+                "avg_respondent_rating": 0
+            },
+            "feedback": {
+                "total_feedback": 0,
+                "avg_user_rating": 0,
+                "bug_reports": 0,
+                "feature_requests": 0
+            },
+            "top_pages": [],
+            "daily_trend": [],
+            "system_metrics": MetricsService.get_system_metrics(),
+            "generated_at": datetime.now().isoformat()
+        }
     
     with get_db_connection() as conn:
+        # Compatibility: old databases may miss ip_address in website_analytics.
+        try:
+            wa_columns = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(website_analytics)").fetchall()
+            }
+        except sqlite3.OperationalError:
+            wa_columns = set()
+
+        unique_visitors_expr = "COUNT(DISTINCT ip_address)" if "ip_address" in wa_columns else "COUNT(DISTINCT session_id)"
+
         # Website traffic metrics
-        traffic_stats = conn.execute("""
-            SELECT 
-                COUNT(*) as page_views,
-                COUNT(DISTINCT session_id) as unique_sessions,
-                COUNT(DISTINCT user_id) as logged_in_users,
-                AVG(time_on_page) as avg_time_on_page,
-                COUNT(DISTINCT ip_address) as unique_visitors
-            FROM website_analytics 
-            WHERE created_at >= ?
-        """, (start_date.isoformat(),)).fetchone()
+        try:
+            traffic_stats = conn.execute(f"""
+                SELECT 
+                    COUNT(*) as page_views,
+                    COUNT(DISTINCT session_id) as unique_sessions,
+                    COUNT(DISTINCT user_id) as logged_in_users,
+                    AVG(time_on_page) as avg_time_on_page,
+                    {unique_visitors_expr} as unique_visitors
+                FROM website_analytics 
+                WHERE created_at >= ?
+            """, (start_date.isoformat(),)).fetchone()
+        except sqlite3.OperationalError:
+            traffic_stats = {
+                "page_views": 0,
+                "unique_sessions": 0,
+                "logged_in_users": 0,
+                "avg_time_on_page": 0,
+                "unique_visitors": 0,
+            }
         
         # User engagement metrics
-        user_stats = conn.execute("""
-            SELECT 
-                COUNT(DISTINCT id) as total_users,
-                COUNT(DISTINCT CASE WHEN last_login >= ? THEN id END) as active_users,
-                COUNT(DISTINCT CASE WHEN created_at >= ? THEN id END) as new_signups
-            FROM users
-        """, (start_date.isoformat(), start_date.isoformat())).fetchone()
+        try:
+            user_stats = conn.execute("""
+                SELECT 
+                    COUNT(DISTINCT id) as total_users,
+                    COUNT(DISTINCT CASE WHEN last_login >= ? THEN id END) as active_users,
+                    COUNT(DISTINCT CASE WHEN created_at >= ? THEN id END) as new_signups
+                FROM users
+            """, (start_date.isoformat(), start_date.isoformat())).fetchone()
+        except sqlite3.OperationalError:
+            user_stats = {"total_users": 0, "active_users": 0, "new_signups": 0}
         
         # Survey metrics
-        survey_stats = conn.execute("""
-            SELECT 
-                COUNT(DISTINCT s.id) as surveys_created,
-                COUNT(DISTINCT sp.id) as surveys_published,
-                COUNT(DISTINCT r.id) as responses_collected,
-                AVG(re.overall_rating) as avg_respondent_rating
-            FROM surveys s
-            LEFT JOIN survey_publications sp ON s.id = sp.survey_id
-            LEFT JOIN responses r ON s.id = r.survey_id AND r.created_at >= ?
-            LEFT JOIN respondent_experience re ON s.id = re.survey_id AND re.created_at >= ?
-            WHERE s.created_at >= ?
-        """, (start_date.isoformat(), start_date.isoformat(), start_date.isoformat())).fetchone()
+        try:
+            survey_stats = conn.execute("""
+                SELECT 
+                    COUNT(DISTINCT s.id) as surveys_created,
+                    COUNT(DISTINCT sp.id) as surveys_published,
+                    COUNT(DISTINCT r.id) as responses_collected,
+                    AVG(re.overall_rating) as avg_respondent_rating
+                FROM surveys s
+                LEFT JOIN survey_publications sp ON s.id = sp.survey_id
+                LEFT JOIN responses r ON s.id = r.survey_id AND r.created_at >= ?
+                LEFT JOIN respondent_experience re ON s.id = re.survey_id AND re.created_at >= ?
+                WHERE s.created_at >= ?
+            """, (start_date.isoformat(), start_date.isoformat(), start_date.isoformat())).fetchone()
+        except sqlite3.OperationalError:
+            survey_stats = {
+                "surveys_created": 0,
+                "surveys_published": 0,
+                "responses_collected": 0,
+                "avg_respondent_rating": 0,
+            }
         
         # Feedback metrics
-        feedback_stats = conn.execute("""
-            SELECT 
-                COUNT(*) as total_feedback,
-                AVG(rating) as avg_user_rating,
-                COUNT(DISTINCT CASE WHEN feedback_type = 'bug' THEN id END) as bug_reports,
-                COUNT(DISTINCT CASE WHEN feedback_type = 'feature_request' THEN id END) as feature_requests
-            FROM user_feedback 
-            WHERE created_at >= ?
-        """, (start_date.isoformat(),)).fetchone()
+        try:
+            feedback_stats = conn.execute("""
+                SELECT 
+                    COUNT(*) as total_feedback,
+                    AVG(rating) as avg_user_rating,
+                    COUNT(DISTINCT CASE WHEN feedback_type = 'bug' THEN id END) as bug_reports,
+                    COUNT(DISTINCT CASE WHEN feedback_type = 'feature_request' THEN id END) as feature_requests
+                FROM user_feedback 
+                WHERE created_at >= ?
+            """, (start_date.isoformat(),)).fetchone()
+        except sqlite3.OperationalError:
+            feedback_stats = {
+                "total_feedback": 0,
+                "avg_user_rating": 0,
+                "bug_reports": 0,
+                "feature_requests": 0,
+            }
         
         # Top pages and conversion events
-        top_pages = conn.execute("""
-            SELECT page_url, COUNT(*) as views
-            FROM website_analytics 
-            WHERE created_at >= ?
-            GROUP BY page_url
-            ORDER BY views DESC
-            LIMIT 10
-        """, (start_date.isoformat(),)).fetchall()
+        try:
+            top_pages = conn.execute("""
+                SELECT page_url, COUNT(*) as views
+                FROM website_analytics 
+                WHERE created_at >= ?
+                GROUP BY page_url
+                ORDER BY views DESC
+                LIMIT 10
+            """, (start_date.isoformat(),)).fetchall()
+        except sqlite3.OperationalError:
+            top_pages = []
         
         # Daily traffic trend
-        daily_trend = conn.execute("""
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as page_views,
-                COUNT(DISTINCT session_id) as unique_sessions
-            FROM website_analytics 
-            WHERE created_at >= ?
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC
-        """, (start_date.isoformat(),)).fetchall()
+        try:
+            daily_trend = conn.execute("""
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as page_views,
+                    COUNT(DISTINCT session_id) as unique_sessions
+                FROM website_analytics 
+                WHERE created_at >= ?
+                GROUP BY DATE(created_at)
+                ORDER BY date DESC
+            """, (start_date.isoformat(),)).fetchall()
+        except sqlite3.OperationalError:
+            daily_trend = []
+
+    if not traffic_stats and not user_stats and not survey_stats and not feedback_stats:
+        return _default_overview_payload()
     
     return {
         "period_days": days,
@@ -384,28 +465,38 @@ async def get_user_feedback_dashboard(
     params.append(limit)
     
     with get_db_connection() as conn:
-        feedback_items = conn.execute(f"""
-            SELECT 
-                uf.*, 
-                u.name as user_name, 
-                u.email as user_email
-            FROM user_feedback uf
-            LEFT JOIN users u ON uf.user_id = u.id
-            {where_clause}
-            ORDER BY uf.created_at DESC
-            LIMIT ?
-        """, params).fetchall()
-        
-        # Summary stats
-        summary = conn.execute("""
-            SELECT 
-                COUNT(*) as total_feedback,
-                COUNT(DISTINCT CASE WHEN status = 'open' THEN id END) as open_items,
-                COUNT(DISTINCT CASE WHEN status = 'in_progress' THEN id END) as in_progress,
-                COUNT(DISTINCT CASE WHEN status = 'resolved' THEN id END) as resolved,
-                AVG(rating) as avg_rating
-            FROM user_feedback
-        """).fetchone()
+        try:
+            feedback_items = conn.execute(f"""
+                SELECT 
+                    uf.*, 
+                    u.name as user_name, 
+                    u.email as user_email
+                FROM user_feedback uf
+                LEFT JOIN users u ON uf.user_id = u.id
+                {where_clause}
+                ORDER BY uf.created_at DESC
+                LIMIT ?
+            """, params).fetchall()
+            
+            # Summary stats
+            summary = conn.execute("""
+                SELECT 
+                    COUNT(*) as total_feedback,
+                    COUNT(DISTINCT CASE WHEN status = 'open' THEN id END) as open_items,
+                    COUNT(DISTINCT CASE WHEN status = 'in_progress' THEN id END) as in_progress,
+                    COUNT(DISTINCT CASE WHEN status = 'resolved' THEN id END) as resolved,
+                    AVG(rating) as avg_rating
+                FROM user_feedback
+            """).fetchone()
+        except sqlite3.OperationalError:
+            feedback_items = []
+            summary = {
+                "total_feedback": 0,
+                "open_items": 0,
+                "in_progress": 0,
+                "resolved": 0,
+                "avg_rating": 0,
+            }
     
     return {
         "feedback_items": [dict(item) for item in feedback_items],
@@ -437,51 +528,65 @@ async def get_respondent_experience_dashboard(
         
         where_clause = "WHERE " + " AND ".join(conditions)
         
-        # Experience metrics
-        experience_stats = conn.execute(f"""
-            SELECT 
-                COUNT(*) as total_responses,
-                AVG(overall_rating) as avg_overall_rating,
-                AVG(easiness_rating) as avg_easiness_rating,
-                AVG(clarity_rating) as avg_clarity_rating,
-                AVG(time_rating) as avg_time_rating,
-                COUNT(CASE WHEN technical_issues = 1 THEN 1 END) as technical_issues_count,
-                COUNT(CASE WHEN would_recommend = 1 THEN 1 END) as would_recommend_count,
-                AVG(completion_time) as avg_completion_time
-            FROM respondent_experience re
-            {where_clause}
-        """, params).fetchone()
-        
-        # Experience by survey
-        survey_breakdown = conn.execute(f"""
-            SELECT 
-                s.title as survey_title,
-                s.id as survey_id,
-                COUNT(re.id) as response_count,
-                AVG(re.overall_rating) as avg_rating,
-                COUNT(CASE WHEN re.would_recommend = 1 THEN 1 END) as recommend_count
-            FROM respondent_experience re
-            JOIN surveys s ON re.survey_id = s.id
-            {where_clause}
-            GROUP BY s.id, s.title
-            ORDER BY response_count DESC
-        """, params).fetchall()
-        
-        # Recent feedback comments
-        recent_feedback = conn.execute(f"""
-            SELECT 
-                re.quick_feedback,
-                re.improvement_suggestion,
-                re.overall_rating,
-                s.title as survey_title,
-                re.created_at
-            FROM respondent_experience re
-            JOIN surveys s ON re.survey_id = s.id
-            {where_clause}
-            AND (re.quick_feedback IS NOT NULL OR re.improvement_suggestion IS NOT NULL)
-            ORDER BY re.created_at DESC
-            LIMIT 20
-        """, params).fetchall()
+        try:
+            # Experience metrics
+            experience_stats = conn.execute(f"""
+                SELECT 
+                    COUNT(*) as total_responses,
+                    AVG(overall_rating) as avg_overall_rating,
+                    AVG(easiness_rating) as avg_easiness_rating,
+                    AVG(clarity_rating) as avg_clarity_rating,
+                    AVG(time_rating) as avg_time_rating,
+                    COUNT(CASE WHEN technical_issues = 1 THEN 1 END) as technical_issues_count,
+                    COUNT(CASE WHEN would_recommend = 1 THEN 1 END) as would_recommend_count,
+                    AVG(completion_time) as avg_completion_time
+                FROM respondent_experience re
+                {where_clause}
+            """, params).fetchone()
+            
+            # Experience by survey
+            survey_breakdown = conn.execute(f"""
+                SELECT 
+                    s.title as survey_title,
+                    s.id as survey_id,
+                    COUNT(re.id) as response_count,
+                    AVG(re.overall_rating) as avg_rating,
+                    COUNT(CASE WHEN re.would_recommend = 1 THEN 1 END) as recommend_count
+                FROM respondent_experience re
+                JOIN surveys s ON re.survey_id = s.id
+                {where_clause}
+                GROUP BY s.id, s.title
+                ORDER BY response_count DESC
+            """, params).fetchall()
+            
+            # Recent feedback comments
+            recent_feedback = conn.execute(f"""
+                SELECT 
+                    re.quick_feedback,
+                    re.improvement_suggestion,
+                    re.overall_rating,
+                    s.title as survey_title,
+                    re.created_at
+                FROM respondent_experience re
+                JOIN surveys s ON re.survey_id = s.id
+                {where_clause}
+                AND (re.quick_feedback IS NOT NULL OR re.improvement_suggestion IS NOT NULL)
+                ORDER BY re.created_at DESC
+                LIMIT 20
+            """, params).fetchall()
+        except sqlite3.OperationalError:
+            experience_stats = {
+                "total_responses": 0,
+                "avg_overall_rating": 0,
+                "avg_easiness_rating": 0,
+                "avg_clarity_rating": 0,
+                "avg_time_rating": 0,
+                "technical_issues_count": 0,
+                "would_recommend_count": 0,
+                "avg_completion_time": 0,
+            }
+            survey_breakdown = []
+            recent_feedback = []
     
     return {
         "period_days": days,
