@@ -193,6 +193,11 @@ class AnalyticsDashboard {
                 font-size: 0.9rem;
             }
 
+            .period-selector option {
+                background: #ffffff;
+                color: #0a0f1e;
+            }
+
             .refresh-btn {
                 background: rgba(255,255,255,0.2);
                 border: 1px solid rgba(255,255,255,0.3);
