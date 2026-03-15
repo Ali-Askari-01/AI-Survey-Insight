@@ -673,6 +673,9 @@ class AnalyticsDashboard {
     }
 
     updateCharts(data) {
+        const trendRows = [...(data.daily_trend || [])]
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
         // Traffic Trend Chart
         const trafficCtx = document.getElementById('analyticsTrafficChart');
         if (!trafficCtx) return;
@@ -684,11 +687,11 @@ class AnalyticsDashboard {
         this.charts.traffic = new Chart(trafficCtx, {
             type: 'line',
             data: {
-                labels: data.daily_trend?.map(d => new Date(d.date).toLocaleDateString()) || [],
+                labels: trendRows.map(d => new Date(d.date).toLocaleDateString()),
                 datasets: [
                     {
                         label: 'Page Views',
-                        data: data.daily_trend?.map(d => d.page_views) || [],
+                        data: trendRows.map(d => d.page_views || 0),
                         borderColor: '#F5A623',
                         backgroundColor: 'rgba(245,166,35,0.1)',
                         tension: 0.4,
@@ -696,7 +699,7 @@ class AnalyticsDashboard {
                     },
                     {
                         label: 'Unique Sessions',
-                        data: data.daily_trend?.map(d => d.unique_sessions) || [],
+                        data: trendRows.map(d => d.unique_sessions || 0),
                         borderColor: '#3B82F6',
                         backgroundColor: 'rgba(59,130,246,0.1)',
                         tension: 0.4,
@@ -734,9 +737,9 @@ class AnalyticsDashboard {
                 labels: ['Web Form', 'Chat', 'Audio'],
                 datasets: [{
                     data: [
-                        data.surveys?.web_responses || 0,
-                        data.surveys?.chat_responses || 0,
-                        data.surveys?.audio_responses || 0
+                        Number(data.surveys?.web_responses || 0),
+                        Number(data.surveys?.chat_responses || 0),
+                        Number(data.surveys?.audio_responses || 0)
                     ],
                     backgroundColor: [
                         '#F5A623',

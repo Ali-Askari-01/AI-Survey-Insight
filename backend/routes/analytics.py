@@ -375,6 +375,23 @@ async def get_dashboard_overview(
                 "responses_collected": 0,
                 "avg_respondent_rating": 0,
             }
+
+        # Channel performance breakdown
+        try:
+            channel_stats = conn.execute("""
+                SELECT
+                    COUNT(CASE WHEN LOWER(channel_used) = 'web' THEN 1 END) as web_responses,
+                    COUNT(CASE WHEN LOWER(channel_used) = 'chat' THEN 1 END) as chat_responses,
+                    COUNT(CASE WHEN LOWER(channel_used) = 'audio' THEN 1 END) as audio_responses
+                FROM respondent_experience
+                WHERE created_at >= ?
+            """, (start_date.isoformat(),)).fetchone()
+        except sqlite3.OperationalError:
+            channel_stats = {
+                "web_responses": 0,
+                "chat_responses": 0,
+                "audio_responses": 0,
+            }
         
         # Feedback metrics
         try:
@@ -418,7 +435,7 @@ async def get_dashboard_overview(
                 FROM website_analytics 
                 WHERE created_at >= ?
                 GROUP BY DATE(created_at)
-                ORDER BY date DESC
+                ORDER BY date ASC
             """, (start_date.isoformat(),)).fetchall()
         except sqlite3.OperationalError:
             daily_trend = []
@@ -426,11 +443,20 @@ async def get_dashboard_overview(
     if not traffic_stats and not user_stats and not survey_stats and not feedback_stats:
         return _default_overview_payload()
     
+    surveys_payload = dict(survey_stats) if survey_stats else {}
+    if isinstance(channel_stats, sqlite3.Row):
+        channel_payload = dict(channel_stats)
+    elif isinstance(channel_stats, dict):
+        channel_payload = channel_stats
+    else:
+        channel_payload = {"web_responses": 0, "chat_responses": 0, "audio_responses": 0}
+    surveys_payload.update(channel_payload)
+
     return {
         "period_days": days,
         "traffic": dict(traffic_stats) if traffic_stats else {},
         "users": dict(user_stats) if user_stats else {},
-        "surveys": dict(survey_stats) if survey_stats else {},
+        "surveys": surveys_payload,
         "feedback": dict(feedback_stats) if feedback_stats else {},
         "top_pages": [dict(page) for page in top_pages],
         "daily_trend": [dict(day) for day in daily_trend],
