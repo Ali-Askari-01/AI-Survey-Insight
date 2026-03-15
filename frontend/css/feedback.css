@@ -12,7 +12,15 @@
 }
 
 .feedback-widget.stacked-for-chatbot {
-    bottom: 96px;
+    bottom: 176px;
+}
+
+.feedback-widget.stacked-for-fab {
+    bottom: 106px;
+}
+
+.feedback-widget.stacked-for-chatbot.stacked-for-fab {
+    bottom: 176px;
 }
 
 .feedback-trigger {
@@ -422,7 +430,15 @@
     }
 
     .feedback-widget.stacked-for-chatbot {
-        bottom: 84px;
+        bottom: 148px;
+    }
+
+    .feedback-widget.stacked-for-fab {
+        bottom: 80px;
+    }
+
+    .feedback-widget.stacked-for-chatbot.stacked-for-fab {
+        bottom: 148px;
     }
     
     .feedback-trigger {

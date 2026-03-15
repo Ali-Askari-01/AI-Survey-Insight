@@ -300,8 +300,18 @@ class FeedbackAnalytics {
         const widget = document.querySelector('.feedback-widget');
         if (!widget) return;
 
-        const hasChatbotToggle = Boolean(document.getElementById('chatbot-toggle-btn'));
+        const chatbotToggle = document.getElementById('chatbot-toggle-btn');
+        const fabNewSurvey = document.getElementById('fab-new-survey');
+
+        const hasChatbotToggle = Boolean(chatbotToggle);
+        const hasVisibleFab = Boolean(
+            fabNewSurvey &&
+            getComputedStyle(fabNewSurvey).pointerEvents !== 'none' &&
+            getComputedStyle(fabNewSurvey).opacity !== '0'
+        );
+
         widget.classList.toggle('stacked-for-chatbot', hasChatbotToggle);
+        widget.classList.toggle('stacked-for-fab', hasVisibleFab);
     }
 
     setupBeforeUnloadTracking() {
