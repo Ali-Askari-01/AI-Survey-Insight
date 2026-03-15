@@ -59,7 +59,7 @@
                     Start for Free <i class="fas fa-arrow-right"></i>
                 </a>
                 <a href="#how-it-works" class="btn-cta btn-cta-secondary">
-                    <i class="fas fa-play-circle"></i> Watch Demo
+                    <i class="fas fa-compass"></i> See How It Works
                 </a>
             </div>
             <div class="hero-trust-row">
@@ -68,7 +68,7 @@
                 <span><i class="fas fa-robot"></i> AI-powered</span>
             </div>
 
-            <!-- Floating Chat Mockup -->
+            <!-- Floating Chat Mockup (animated typewriter) -->
             <div class="hero-mockup">
                 <div class="hero-mockup-card">
                     <div class="mockup-header">
@@ -77,9 +77,12 @@
                         <span class="mockup-dot" style="background:#10B981"></span>
                         <span style="margin-left:8px;font-size:0.8rem;color:#A3ADB8">AI Survey Designer</span>
                     </div>
-                    <div class="mockup-msg mockup-msg-ai">What would you like to learn from your users today?</div>
-                    <div class="mockup-msg mockup-msg-user">I want to understand why users abandon onboarding</div>
-                    <div class="mockup-msg mockup-msg-ai">Great! I'll design adaptive interview questions that explore friction points, emotional reactions, and suggestions. Ready in seconds...</div>
+                    <div class="mockup-msg mockup-msg-ai" id="tw-msg-1"></div>
+                    <div class="mockup-msg mockup-msg-user" id="tw-msg-2" style="display:none"></div>
+                    <div class="mockup-msg mockup-msg-ai" id="tw-msg-3" style="display:none"></div>
+                    <div class="mockup-typing" id="tw-typing" style="display:none">
+                        <span></span><span></span><span></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -272,7 +275,7 @@
             </a>
             <p style="margin-top:4px">Turn conversations into clarity.</p>
         </div>
-        <p>&copy; 2024 InsightAI. Built with <i class="fas fa-heart" style="color: #EF4444;"></i> and Google Gemini AI. | <a href="/app">Go to App</a></p>
+        <p>&copy; 2026 InsightAI. Built with <i class="fas fa-heart" style="color: #EF4444;"></i> and Google Gemini AI. | <a href="/app">Go to App</a></p>
     </footer>
 
     <!-- ═══ Scroll & Animation Scripts ═══ -->
@@ -342,10 +345,58 @@
             document.querySelectorAll('[data-target]').forEach(el => observer.observe(el));
         };
 
+        // Typewriter animation for hero chat mockup
+        const typewriterSequence = () => {
+            const messages = [
+                { id: 'tw-msg-1', text: 'What would you like to learn from your users today?', delay: 400 },
+                { id: 'tw-msg-2', text: 'I want to understand why users abandon onboarding', delay: 1800 },
+                { id: 'tw-msg-3', text: "Great! I'll design adaptive interview questions that explore friction points, emotional reactions, and suggestions. Ready in seconds...", delay: 3600 },
+            ];
+
+            const typeText = (el, text, speed = 28) => new Promise(resolve => {
+                el.textContent = '';
+                el.style.display = '';
+                let i = 0;
+                const tick = () => {
+                    if (i < text.length) {
+                        el.textContent += text[i++];
+                        setTimeout(tick, speed);
+                    } else {
+                        resolve();
+                    }
+                };
+                tick();
+            });
+
+            const run = async () => {
+                const typing = document.getElementById('tw-typing');
+                for (const msg of messages) {
+                    const el = document.getElementById(msg.id);
+                    if (!el) continue;
+                    await new Promise(r => setTimeout(r, msg.delay - (msg === messages[0] ? 0 : 400)));
+                    if (typing) typing.style.display = '';
+                    await new Promise(r => setTimeout(r, 500));
+                    if (typing) typing.style.display = 'none';
+                    await typeText(el, msg.text);
+                }
+                // Loop after pause
+                setTimeout(() => {
+                    messages.forEach(m => {
+                        const el = document.getElementById(m.id);
+                        if (el) { el.textContent = ''; el.style.display = 'none'; }
+                    });
+                    run();
+                }, 4000);
+            };
+
+            run();
+        };
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             animateOnScroll();
             animateCounters();
+            typewriterSequence();
         });
     </script>
 </body>

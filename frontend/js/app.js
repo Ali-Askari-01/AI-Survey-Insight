@@ -9,11 +9,11 @@ const App = {
     viewMode: 'explore',
     activeSurveyId: null,  // Tracks the currently selected survey for insights/reports
     pages: {
-        dashboard: { title: 'Dashboard', icon: 'fa-th-large', component: null },
-        'survey-designer': { title: 'Survey Designer', icon: 'fa-magic', component: () => SurveyDesigner },
+        dashboard: { title: 'Home', icon: 'fa-house', component: null },
+        'survey-designer': { title: 'New Survey', icon: 'fa-plus-circle', component: () => SurveyDesigner },
         'my-surveys': { title: 'My Surveys', icon: 'fa-folder-open', component: () => MySurveys },
-        'insights': { title: 'Insights', icon: 'fa-chart-bar', component: () => InsightDashboard },
-        'reports': { title: 'Reports', icon: 'fa-file-alt', component: () => ReportPanel },
+        'insights': { title: 'Results & Themes', icon: 'fa-lightbulb', component: () => InsightDashboard },
+        'reports': { title: 'Export / Share', icon: 'fa-share-nodes', component: () => ReportPanel },
         'analytics': { title: 'Analytics Dashboard', icon: 'fa-chart-bar', component: () => new AnalyticsDashboard() }
     },
     activeComponent: null,
@@ -112,7 +112,7 @@ const App = {
                 const result = await API.auth.login(email, password);
                 API.setToken(result.access_token);
                 this.currentUser = result.user;
-                this.onLoginSuccess();
+                this.onLoginSuccess(false);
             } catch (err) {
                 errEl.textContent = err.message || 'Login failed';
                 errEl.hidden = false;
@@ -160,7 +160,7 @@ const App = {
                 const result = await API.auth.register(name, email, password);
                 API.setToken(result.access_token);
                 this.currentUser = result.user;
-                this.onLoginSuccess();
+                this.onLoginSuccess(true); // new user — trigger onboarding
             } catch (err) {
                 errEl.textContent = err.message || 'Registration failed';
                 errEl.hidden = false;
@@ -191,11 +191,15 @@ const App = {
         }
     },
 
-    onLoginSuccess() {
+    onLoginSuccess(isNewUser = false) {
         this.hideLogin();
         this.currentRole = this.currentUser?.role || 'pm';
         this.updateUserUI();
         this.initApp();
+        if (isNewUser) {
+            // Show onboarding modal after a brief pause so app initialises first
+            setTimeout(() => this.showOnboardingModal(), 600);
+        }
     },
 
     logout() {
@@ -268,7 +272,29 @@ const App = {
             const page = window.location.hash.replace('#', '') || 'dashboard';
             this.navigate(page);
         });
+        // Bind onboarding modal buttons
+        document.getElementById('onboarding-cta')?.addEventListener('click', () => {
+            this.closeOnboardingModal();
+            window.location.hash = 'survey-designer';
+        });
+        document.getElementById('onboarding-skip')?.addEventListener('click', () => {
+            this.closeOnboardingModal();
+        });
+        document.getElementById('onboarding-overlay')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeOnboardingModal();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeOnboardingModal();
+            }
+        });
 
+        // Bind FAB New Survey button
+        document.getElementById('fab-new-survey')?.addEventListener('click', () => {
+            window.location.hash = 'survey-designer';
+        });
         console.log('🚀 AI Survey Software initialized');
     },
 
@@ -309,14 +335,27 @@ const App = {
 
         this.currentPage = page;
 
+        // Update body data-page (used by CSS selectors like FAB visibility)
+        document.body.setAttribute('data-page', page);
+
         // Update sidebar active state
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === page);
         });
 
-        // Update page title
+        // Update page title and breadcrumb
         const topTitle = document.getElementById('page-title');
         if (topTitle) topTitle.textContent = this.pages[page].title;
+        const breadcrumb = document.getElementById('breadcrumb');
+        if (breadcrumb) {
+            if (page === 'dashboard') {
+                breadcrumb.innerHTML = '';
+            } else {
+                breadcrumb.innerHTML = `<span class="breadcrumb-home" onclick="window.location.hash='dashboard'">Home</span>
+                    <span class="breadcrumb-sep">›</span>
+                    <span class="breadcrumb-current">${this.pages[page].title}</span>`;
+            }
+        }
 
         // Hide all pages, show current
         document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
@@ -407,13 +446,46 @@ const App = {
                 API.notifications.list().catch(() => [])
             ]);
 
-            // Set active survey — pick the most recent one (or first available)
-            if (surveys.length > 0) {
-                const sorted = [...surveys].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-                this.activeSurveyId = sorted[0].id;
-            } else {
-                this.activeSurveyId = 1; // fallback
+            // ── Empty state: no surveys yet ─────────────────
+            if (surveys.length === 0) {
+                const page = document.getElementById('page-dashboard');
+                if (page) {
+                    const name = this.currentUser?.name ? `, ${this.currentUser.name.split(' ')[0]}` : '';
+                    page.innerHTML = `
+                        <div class="dashboard-empty">
+                            <div class="dashboard-empty-illustration">
+                                <i class="fas fa-wand-magic-sparkles"></i>
+                            </div>
+                            <h2>Welcome${name}! Let's build your first survey.</h2>
+                            <p>You haven't created any surveys yet. Tell the AI what you want to learn — it'll design the perfect questions in seconds.</p>
+                            <div class="dashboard-empty-steps">
+                                <div class="dash-empty-step">
+                                    <span class="dash-empty-num">1</span>
+                                    <span>Describe your research goal</span>
+                                </div>
+                                <div class="dash-empty-arrow"><i class="fas fa-arrow-right"></i></div>
+                                <div class="dash-empty-step">
+                                    <span class="dash-empty-num">2</span>
+                                    <span>AI generates questions</span>
+                                </div>
+                                <div class="dash-empty-arrow"><i class="fas fa-arrow-right"></i></div>
+                                <div class="dash-empty-step">
+                                    <span class="dash-empty-num">3</span>
+                                    <span>Share the link &amp; collect responses</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-lg" onclick="window.location.hash='survey-designer'">
+                                <i class="fas fa-plus-circle"></i> Create Your First Survey
+                            </button>
+                        </div>
+                    `;
+                }
+                return;
             }
+
+            // Set active survey — pick the most recent one
+            const sorted = [...surveys].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            this.activeSurveyId = sorted[0].id;
 
             // Load summary for the active survey
             const summary = await API.insights.getSummary(this.activeSurveyId).catch(() => ({}));
@@ -674,6 +746,23 @@ const App = {
                     </div>
                 </div>
             `;
+        }
+    },
+
+    /* ── Onboarding Modal ──────────────────────────────── */
+    showOnboardingModal() {
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) {
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+    },
+
+    closeOnboardingModal() {
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) {
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
         }
     },
 

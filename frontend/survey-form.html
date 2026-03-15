@@ -203,6 +203,7 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
+        let surveyMeta = null;
 
         // Initialize survey
         async function initSurvey() {
@@ -244,7 +245,16 @@
             try {
                 const response = await fetch(`/api/surveys/${surveyId}`);
                 const surveyData = await response.json();
+                surveyMeta = surveyData;
                 questions = surveyData.questions || [];
+
+                // Reflect respondent-facing survey context in the header when available
+                if (surveyData.title) {
+                    document.querySelector('.card-header h1').innerHTML = `<i class="fas fa-clipboard-list"></i> ${surveyData.title}`;
+                }
+                if (surveyData.description) {
+                    document.querySelector('.card-header p').textContent = surveyData.description;
+                }
             } catch (error) {
                 console.error('Failed to load questions:', error);
                 questions = [
@@ -256,6 +266,12 @@
         }
         
         function showCurrentQuestion() {
+            if (!questions || questions.length === 0) {
+                showStatus('error', 'This survey does not have questions yet. Please try again later.');
+                document.getElementById('next-btn').disabled = true;
+                return;
+            }
+
             if (currentQuestion >= questions.length) {
                 completeSurvey();
                 return;
@@ -273,11 +289,14 @@
             
             // Update navigation
             document.getElementById('back-btn').style.display = currentQuestion > 0 ? 'block' : 'none';
-            document.getElementById('next-btn').textContent = currentQuestion === questions.length - 1 ? 'Submit' : 'Next';
+            document.getElementById('next-btn').innerHTML = currentQuestion === questions.length - 1
+                ? 'Submit <i class="fas fa-paper-plane"></i>'
+                : 'Next <i class="fas fa-arrow-right"></i>';
         }
         
         async function nextQuestion() {
             const answer = document.getElementById('answer-input').value.trim();
+            const nextBtn = document.getElementById('next-btn');
             
             if (!answer) {
                 showStatus('error', 'Please provide an answer before continuing.');
@@ -289,6 +308,8 @@
             
             // Submit response to backend using FAST endpoint
             try {
+                nextBtn.disabled = true;
+                nextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
                 showStatus('info', 'Saving your response...');
                 
                 const question = questions[currentQuestion];
@@ -310,6 +331,9 @@
             } catch (error) {
                 console.error('Submit error:', error);
                 showStatus('error', 'Failed to save response. Please try again.');
+            } finally {
+                nextBtn.disabled = false;
+                showCurrentQuestion();
             }
         }
         
@@ -323,6 +347,11 @@
         function completeSurvey() {
             document.getElementById('survey-card').style.display = 'none';
             document.getElementById('completion-card').style.display = 'block';
+
+            const completionText = document.querySelector('.completion-text');
+            if (completionText && surveyMeta?.title) {
+                completionText.textContent = `Your responses for "${surveyMeta.title}" have been submitted successfully. Thank you for taking the time to share your valuable insights with us.`;
+            }
             
             // Show experience feedback widget after 2 seconds
             setTimeout(() => {
@@ -407,6 +436,9 @@
                     answerInput.value = result.text;
                     document.getElementById('voice-status').textContent = 'Transcription complete!';
                     showStatus('success', 'Voice input transcribed successfully!');
+                    setTimeout(() => {
+                        document.getElementById('voice-status').textContent = 'Click to speak your answer';
+                    }, 1800);
                 } else {
                     throw new Error('Transcription failed');
                 }
@@ -444,8 +476,8 @@
         function showExperienceWidget() {
             if (document.getElementById('experienceWidget')) return; // Already shown
             
-            const sessionId = surveyData.session_id || 'session_' + Date.now();
-            const surveyId = surveyData.survey_id || 1;
+            const feedbackSessionId = sessionId || ('session_' + Date.now());
+            const feedbackSurveyId = surveyId || 1;
             
             const widgetHTML = `
                 <div class="experience-widget" id="experienceWidget" style="
@@ -494,7 +526,7 @@
                             background: transparent; border: none; color: var(--text-muted);
                             padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
                         ">Skip</button>
-                        <button onclick="submitExperience('${sessionId}', ${surveyId})" style="
+                        <button onclick="submitExperience('${feedbackSessionId}', ${feedbackSurveyId})" style="
                             background: var(--gold); border: none; color: white;
                             padding: 6px 12px; border-radius: 6px; font-size: 0.75rem;
                             cursor: pointer; font-weight: 500;
@@ -583,6 +615,14 @@
 
         // Track survey start time for completion duration
         window.surveyStartTime = Date.now();
+
+        // Keyboard shortcut for faster completion
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                nextQuestion();
+            }
+        });
         
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', initSurvey);

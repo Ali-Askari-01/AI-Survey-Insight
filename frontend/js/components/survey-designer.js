@@ -12,6 +12,7 @@ const SurveyDesigner = {
     questions: [],
     intakeConversation: [],   // Track the multi-step intake conversation
     intakeReady: false,       // Whether AI has enough info to generate questions
+    loadingTimer: null,
 
     async init() {
         this.currentStep = 0;
@@ -138,6 +139,12 @@ const SurveyDesigner = {
                             <div style="text-align:center; padding: var(--space-6)">
                                 <div class="typing-indicator" style="display:inline-flex; margin-bottom: var(--space-3)"><span></span><span></span><span></span></div>
                                 <p class="text-muted" id="ai-loading-text">AI is thinking...</p>
+                                <div style="max-width:420px;margin:10px auto 0;">
+                                    <div style="height:8px;background:var(--neutral-100);border-radius:999px;overflow:hidden;">
+                                        <div id="ai-loading-progress" style="height:100%;width:12%;background:linear-gradient(90deg,var(--accent-gold),var(--primary-500));transition:width 0.4s ease"></div>
+                                    </div>
+                                    <div class="text-muted" id="ai-loading-step" style="font-size:0.75rem;margin-top:6px">Step 1 of 4</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -414,9 +421,18 @@ const SurveyDesigner = {
 
         // Show loading
         const loadingEl = document.getElementById('ai-loading-state');
-        if (loadingEl) loadingEl.hidden = false;
         const loadingTextEl = document.getElementById('ai-loading-text');
-        if (loadingTextEl) loadingTextEl.textContent = 'AI is thinking...';
+        const loadingProgressEl = document.getElementById('ai-loading-progress');
+        const loadingStepEl = document.getElementById('ai-loading-step');
+
+        const setLoadingState = (text, progress, stepLabel) => {
+            if (loadingEl) loadingEl.hidden = false;
+            if (loadingTextEl) loadingTextEl.textContent = text;
+            if (loadingProgressEl) loadingProgressEl.style.width = `${Math.max(8, Math.min(100, progress))}%`;
+            if (loadingStepEl) loadingStepEl.textContent = stepLabel || 'Processing...';
+        };
+
+        setLoadingState('Understanding your goal and context...', 15, 'Step 1 of 4');
 
         try {
             // Step 1: Ask AI if it has enough information
@@ -463,30 +479,12 @@ const SurveyDesigner = {
                 `;
             }
 
-            if (loadingEl) loadingEl.hidden = false;
-            const loadingTexts = this.targetAudiences.length > 1 ? [
-                'Generating audience-specific questions for each target group...',
-                `Creating tailored questions for ${this.targetAudiences.length} audiences...`,
-                'Building follow-up questions for each audience segment...',
-                'Generating generic survey for all audiences...',
-                'Crafting respondent briefings...',
-                'Almost done — polishing the survey design...'
-            ] : [
-                'Generating targeted questions based on our conversation...',
-                'Identifying key research areas and themes...',
-                'Creating follow-up questions for each main question...',
-                'Crafting respondent briefing...',
-                'Almost done — polishing the survey design...'
-            ];
-            let loadingIdx = 0;
-            const loadingInterval = setInterval(() => {
-                loadingIdx = (loadingIdx + 1) % loadingTexts.length;
-                if (loadingTextEl) loadingTextEl.textContent = loadingTexts[loadingIdx];
-            }, 2500);
+            setLoadingState('Building your research structure...', 40, 'Step 2 of 4');
 
             // Parse the full goal text
             const parsed = await API.surveys.parseGoal(this.goalText);
             this.aiParsed = parsed;
+            setLoadingState('Generating adaptive questions and follow-ups...', 62, 'Step 3 of 4');
 
             let deep;
             if (this.targetAudiences.length > 1) {
@@ -530,9 +528,7 @@ const SurveyDesigner = {
             if (!this.audienceResult) {
                 this.questions = deep.questions || [];
             }
-
-            clearInterval(loadingInterval);
-            if (loadingEl) loadingEl.hidden = true;
+            setLoadingState('Saving your survey and preparing launch links...', 85, 'Step 4 of 4');
 
             // Generate consent form if user opted in
             if (this.includeConsent && !this.consentFormText) {
@@ -602,6 +598,11 @@ const SurveyDesigner = {
                 }
             }
 
+            setLoadingState('Done. Your survey is ready for review!', 100, 'Complete');
+            setTimeout(() => {
+                if (loadingEl) loadingEl.hidden = true;
+            }, 500);
+
             // Build success message
             const totalAudienceQs = this.audienceSets.reduce((sum, s) => sum + (s.questions?.length || 0), 0);
             let successMsg;
@@ -644,7 +645,6 @@ const SurveyDesigner = {
             this._isProcessing = false;
             const sendBtn = document.getElementById('btn-send-goal');
             if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; }
-            if (typeof loadingInterval !== 'undefined') clearInterval(loadingInterval);
         }
     },
 
@@ -1092,6 +1092,18 @@ const SurveyDesigner = {
             statusEl.innerHTML = `<div style="text-align:center;padding:var(--space-3)"><div class="spinner" style="margin:0 auto var(--space-2)"></div><p class="text-muted">Publishing your survey...</p></div>`;
         }
 
+        const launchSteps = [
+            'Publishing your survey... ',
+            'Configuring web, chat, and voice channels... ',
+            'Generating share links... '
+        ];
+        let launchStepIdx = 0;
+        this.loadingTimer = setInterval(() => {
+            if (!statusEl) return;
+            launchStepIdx = (launchStepIdx + 1) % launchSteps.length;
+            statusEl.innerHTML = `<div style="text-align:center;padding:var(--space-3)"><div class="spinner" style="margin:0 auto var(--space-2)"></div><p class="text-muted">${launchSteps[launchStepIdx]}</p></div>`;
+        }, 1400);
+
         try {
             // Publish the survey with all channels enabled
             const result = await API.publish.publish({
@@ -1108,11 +1120,24 @@ const SurveyDesigner = {
             const baseUrl = window.location.origin;
             const links = result.links || {};
             const shareCode = result.share_code;
+            const landingLink = `${baseUrl}${links.landing || '/interview/' + shareCode}`;
+
+            if (this.loadingTimer) {
+                clearInterval(this.loadingTimer);
+                this.loadingTimer = null;
+            }
 
             if (statusEl) statusEl.hidden = false;
             if (statusEl) statusEl.innerHTML = `
                 <div class="card" style="border-left: 4px solid var(--success); text-align:left; padding: var(--space-4)">
-                    <p style="margin-bottom:var(--space-3)"><i class="fas fa-check-circle" style="color:var(--success)"></i> <strong>Survey published successfully!</strong></p>
+                    <div style="padding:12px;border-radius:var(--radius-md);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);margin-bottom:var(--space-3)">
+                        <p style="margin:0 0 6px 0"><i class="fas fa-check-circle" style="color:var(--success)"></i> <strong>Your survey is live!</strong></p>
+                        <p class="text-muted" style="margin:0;font-size:0.86rem">Share this main respondent link now:</p>
+                        <div style="display:flex;gap:8px;margin-top:8px">
+                            <input type="text" value="${landingLink}" readonly style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.85rem" onclick="this.select()">
+                            <button class="btn btn-primary" onclick="navigator.clipboard.writeText('${landingLink}');this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied'"><i class="fas fa-share-nodes"></i> Share Survey</button>
+                        </div>
+                    </div>
                     <p class="text-muted" style="margin-bottom:var(--space-3)">Share these links with your respondents:</p>
 
                     <div style="margin-bottom:12px;padding:12px;background:var(--neutral-50);border-radius:var(--radius-md)">
@@ -1121,8 +1146,8 @@ const SurveyDesigner = {
                             <strong>Landing Page</strong> <span class="text-muted" style="font-size:0.8rem">(respondent chooses method)</span>
                         </div>
                         <div style="display:flex;gap:6px">
-                            <input type="text" value="${baseUrl}${links.landing || '/interview/' + shareCode}" readonly style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.85rem" onclick="this.select()">
-                            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${baseUrl}${links.landing || '/interview/' + shareCode}');this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied'"><i class="fas fa-copy"></i> Copy</button>
+                            <input type="text" value="${landingLink}" readonly style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.85rem" onclick="this.select()">
+                            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${landingLink}');this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied'"><i class="fas fa-copy"></i> Copy</button>
                         </div>
                     </div>
 
@@ -1168,6 +1193,10 @@ const SurveyDesigner = {
             Helpers.toast('Published!', 'Survey is now live. Share the links with your respondents!', 'success');
 
         } catch (e) {
+            if (this.loadingTimer) {
+                clearInterval(this.loadingTimer);
+                this.loadingTimer = null;
+            }
             // If already published, show the existing links
             if (e.message && e.message.includes('already published')) {
                 Helpers.toast('Info', 'This survey was already published. Check My Surveys for links.', 'info');

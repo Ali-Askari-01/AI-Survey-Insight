@@ -134,32 +134,71 @@
 
         <div class="sidebar-nav">
             <a href="#" class="nav-item active" data-page="dashboard" role="menuitem">
-                <i class="fas fa-chart-line"></i>
-                <span>Dashboard</span>
+                <i class="fas fa-house"></i>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">Home</span>
+                    <span class="nav-subtitle">Overview &amp; activity</span>
+                </span>
             </a>
-            <a href="#" class="nav-item" data-page="survey-designer" role="menuitem">
-                <i class="fas fa-magic"></i>
-                <span>Survey Designer</span>
+            <a href="#" class="nav-item nav-item-create" data-page="survey-designer" role="menuitem">
+                <i class="fas fa-plus-circle"></i>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">New Survey</span>
+                    <span class="nav-subtitle">AI builds it for you</span>
+                </span>
             </a>
             <a href="#" class="nav-item" data-page="my-surveys" role="menuitem">
                 <i class="fas fa-folder-open"></i>
-                <span>My Surveys</span>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">My Surveys</span>
+                    <span class="nav-subtitle">Manage &amp; share</span>
+                </span>
             </a>
             <a href="#" class="nav-item" data-page="insights" role="menuitem">
                 <i class="fas fa-lightbulb"></i>
-                <span>Insights</span>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">Results &amp; Themes</span>
+                    <span class="nav-subtitle">Sentiment &amp; clusters</span>
+                </span>
             </a>
             <a href="#" class="nav-item" data-page="reports" role="menuitem">
-                <i class="fas fa-file-chart-line fa-file-lines"></i>
-                <span>Reports</span>
+                <i class="fas fa-share-nodes"></i>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">Export / Share</span>
+                    <span class="nav-subtitle">Reports &amp; downloads</span>
+                </span>
             </a>
             <a href="#" class="nav-item founder-only" data-page="analytics" role="menuitem">
                 <i class="fas fa-chart-bar" style="color:var(--accent-gold)"></i>
-                <span>Analytics</span>
+                <span class="nav-label-wrap">
+                    <span class="nav-label">Analytics</span>
+                    <span class="nav-subtitle">Platform-wide data</span>
+                </span>
             </a>
         </div>
 
         <div class="sidebar-footer">
+            <!-- Role Switcher with tooltip -->
+            <div class="role-selector" id="role-selector-wrap">
+                <div class="role-selector-label">
+                    <i class="fas fa-user-tag"></i>
+                    <span>View As</span>
+                    <span class="role-tooltip-trigger" tabindex="0" aria-label="What does View As do?">
+                        <i class="fas fa-circle-info"></i>
+                        <div class="role-tooltip" role="tooltip">
+                            Changes how insights &amp; reports are framed — e.g. executive summary vs. product detail. Your data stays the same.
+                        </div>
+                    </span>
+                </div>
+                <select class="role-select" id="role-select" aria-label="View dashboard as role">
+                    <option value="pm">Product Manager</option>
+                    <option value="executive">Executive</option>
+                    <option value="designer">UX Designer</option>
+                    <option value="researcher">Researcher</option>
+                    <option value="other">Other...</option>
+                </select>
+                <input type="text" class="role-custom-input" id="role-custom-input" placeholder="Enter your role..." hidden maxlength="60">
+            </div>
             <!-- Logout Button -->
             <button class="btn-logout" onclick="App.logout()" title="Sign out">
                 <i class="fas fa-sign-out-alt"></i> Sign Out
@@ -177,7 +216,10 @@
                 <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1 class="page-title" id="page-title">Dashboard</h1>
+                <div class="topbar-title-group">
+                    <h1 class="page-title" id="page-title">Home</h1>
+                    <nav class="breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
+                </div>
             </div>
             <div class="topbar-right">
                 <div class="search-box">
@@ -238,6 +280,58 @@
     <!-- ═══════════════════════════════════════════ -->
     <!-- SCRIPTS                                    -->
     <!-- ═══════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ONBOARDING MODAL                           -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="onboarding-overlay" id="onboarding-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+        <div class="onboarding-card">
+            <div class="onboarding-header">
+                <i class="fas fa-sparkles" style="color:var(--accent-gold);font-size:2rem"></i>
+                <h2 id="onboarding-title">Welcome to InsightAI!</h2>
+                <p>Here's how to get your first insights in under 2 minutes.</p>
+            </div>
+            <div class="onboarding-steps">
+                <div class="onboarding-step">
+                    <div class="onboarding-step-num">1</div>
+                    <div class="onboarding-step-body">
+                        <strong>Name your research goal</strong>
+                        <span>Tell the AI what you want to learn — e.g. "Why do users churn after trial?"</span>
+                    </div>
+                </div>
+                <div class="onboarding-step">
+                    <div class="onboarding-step-num">2</div>
+                    <div class="onboarding-step-body">
+                        <strong>AI generates your survey</strong>
+                        <span>Adaptive interview questions are ready in seconds — no design needed.</span>
+                    </div>
+                </div>
+                <div class="onboarding-step">
+                    <div class="onboarding-step-num">3</div>
+                    <div class="onboarding-step-body">
+                        <strong>Share & get responses</strong>
+                        <span>Copy your survey link. Insights appear in real-time as people respond.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="onboarding-footer">
+                <button class="btn btn-primary onboarding-cta" id="onboarding-cta">
+                    <i class="fas fa-magic"></i> Create My First Survey
+                </button>
+                <button class="btn-text onboarding-skip" id="onboarding-skip">
+                    Skip for now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- FLOATING NEW SURVEY BUTTON                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <button class="fab-new-survey" id="fab-new-survey" title="Create a new survey" aria-label="Create a new survey">
+        <i class="fas fa-plus"></i>
+        <span class="fab-label">New Survey</span>
+    </button>
+
     <script src="/js/utils/api.js"></script>
     <script src="/js/utils/helpers.js"></script>
     <script src="/js/utils/charts.js"></script>
