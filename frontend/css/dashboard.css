@@ -834,8 +834,8 @@
 /* Toggle Button */
 .chatbot-toggle-btn {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 102px;
+    right: 28px;
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -867,7 +867,7 @@
 /* Chat Panel */
 .chatbot-panel {
     position: fixed;
-    bottom: 80px;
+    bottom: 160px;
     right: 24px;
     width: 420px;
     max-height: 600px;
@@ -889,10 +889,16 @@
 }
 
 @media (max-width: 500px) {
+    .chatbot-toggle-btn {
+        right: 16px;
+        bottom: 76px;
+        padding: 11px 16px;
+    }
+
     .chatbot-panel {
         width: calc(100vw - 16px);
         right: 8px;
-        bottom: 72px;
+        bottom: 132px;
         max-height: calc(100vh - 100px);
     }
 }
