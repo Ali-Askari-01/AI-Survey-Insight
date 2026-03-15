@@ -11,6 +11,10 @@
     z-index: 9999;
 }
 
+.feedback-widget.stacked-for-chatbot {
+    bottom: 96px;
+}
+
 .feedback-trigger {
     background: var(--accent-gold);
     color: var(--bg-primary);
@@ -415,6 +419,10 @@
     .feedback-widget {
         right: 16px;
         bottom: 16px;
+    }
+
+    .feedback-widget.stacked-for-chatbot {
+        bottom: 84px;
     }
     
     .feedback-trigger {

@@ -591,22 +591,29 @@ class AnalyticsDashboard {
             this.hideLoading();
         } catch (error) {
             console.error('Dashboard load failed:', error);
-            this.showError('Failed to load dashboard data');
+            const msg = (error && error.message) ? error.message : '';
+            if (msg.includes('403')) {
+                this.showError('Access denied: analytics is available for founder/admin accounts only.');
+            } else if (msg.includes('401')) {
+                this.showError('Session expired. Please sign in again.');
+            } else {
+                this.showError('Failed to load dashboard data');
+            }
         }
     }
 
     async fetchOverview() {
-        const response = await API.get(`/dashboard/overview?days=${this.currentPeriod}`);
+        const response = await API.get(`/api/dashboard/overview?days=${this.currentPeriod}`);
         return response;
     }
 
     async fetchUserFeedback() {
-        const response = await API.get('/dashboard/user-feedback?limit=10');
+        const response = await API.get('/api/dashboard/user-feedback?limit=10');
         return response;
     }
 
     async fetchExperienceData() {
-        const response = await API.get(`/dashboard/respondent-experience?days=${this.currentPeriod}`);
+        const response = await API.get(`/api/dashboard/respondent-experience?days=${this.currentPeriod}`);
         return response;
     }
 

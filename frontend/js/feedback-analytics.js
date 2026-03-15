@@ -14,6 +14,7 @@ class FeedbackAnalytics {
         this.pageStartTime = Date.now();
         this.feedbackModalOpen = false;
         this.experienceWidgetShown = false;
+        this.floatingObserver = null;
         
         this.init();
     }
@@ -21,6 +22,7 @@ class FeedbackAnalytics {
     init() {
         this.trackPageView();
         this.createFeedbackWidget();
+        this.setupFloatingWidgetSync();
         this.setupEventListeners();
         this.setupBeforeUnloadTracking();
     }
@@ -276,6 +278,30 @@ class FeedbackAnalytics {
                 this.trackFeatureUsage('form_submission', 'submit', null, { form_id: form.id });
             }
         });
+    }
+
+    setupFloatingWidgetSync() {
+        this.updateFeedbackWidgetPosition();
+
+        if (this.floatingObserver) {
+            this.floatingObserver.disconnect();
+        }
+
+        this.floatingObserver = new MutationObserver(() => {
+            this.updateFeedbackWidgetPosition();
+        });
+
+        this.floatingObserver.observe(document.body, {
+            childList: true
+        });
+    }
+
+    updateFeedbackWidgetPosition() {
+        const widget = document.querySelector('.feedback-widget');
+        if (!widget) return;
+
+        const hasChatbotToggle = Boolean(document.getElementById('chatbot-toggle-btn'));
+        widget.classList.toggle('stacked-for-chatbot', hasChatbotToggle);
     }
 
     setupBeforeUnloadTracking() {
