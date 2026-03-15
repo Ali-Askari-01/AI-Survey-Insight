@@ -290,6 +290,7 @@ class AnalyticsDashboard {
                 grid-template-columns: 2fr 1fr;
                 gap: 24px;
                 margin-bottom: 32px;
+                align-items: start;
             }
 
             .chart-card {
@@ -298,6 +299,17 @@ class AnalyticsDashboard {
                 padding: 24px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.1);
                 border: 1px solid var(--border-default);
+                min-height: 360px;
+            }
+
+            #analyticsTrafficChart {
+                width: 100% !important;
+                height: 260px !important;
+            }
+
+            #analyticsChannelChart {
+                width: 100% !important;
+                height: 260px !important;
             }
 
             .chart-header {

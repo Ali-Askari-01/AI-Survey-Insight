@@ -332,9 +332,7 @@ async def get_dashboard_overview(
                     AVG(wa.time_on_page) as avg_time_on_page,
                     {unique_visitors_expr} as unique_visitors
                 FROM website_analytics wa
-                LEFT JOIN users u ON wa.user_id = u.id
                 WHERE datetime(wa.created_at) >= datetime(?)
-                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
             """, (start_dt,)).fetchone()
         except sqlite3.OperationalError:
             traffic_stats = {
@@ -381,26 +379,27 @@ async def get_dashboard_overview(
 
         # Channel performance breakdown
         try:
+            # Primary source: interview session channels
             channel_stats = conn.execute("""
                 SELECT
-                    COUNT(CASE WHEN LOWER(channel_used) = 'web' THEN 1 END) as web_responses,
-                    COUNT(CASE WHEN LOWER(channel_used) = 'chat' THEN 1 END) as chat_responses,
-                    COUNT(CASE WHEN LOWER(channel_used) = 'audio' THEN 1 END) as audio_responses
-                FROM respondent_experience
-                WHERE datetime(created_at) >= datetime(?)
+                    COUNT(CASE WHEN LOWER(channel) = 'web' THEN 1 END) as web_responses,
+                    COUNT(CASE WHEN LOWER(channel) = 'chat' THEN 1 END) as chat_responses,
+                    COUNT(CASE WHEN LOWER(channel) = 'audio' THEN 1 END) as audio_responses
+                FROM interview_sessions
+                WHERE datetime(started_at) >= datetime(?)
             """, (start_dt,)).fetchone()
 
-            # Fallback for older datasets where respondent_experience may be sparse.
+            # Fallback for datasets where interview_sessions are sparse but respondent_experience exists.
             if channel_stats:
                 c = dict(channel_stats)
                 if (c.get("web_responses", 0) + c.get("chat_responses", 0) + c.get("audio_responses", 0)) == 0:
                     channel_stats = conn.execute("""
                         SELECT
-                            COUNT(CASE WHEN LOWER(channel) = 'web' THEN 1 END) as web_responses,
-                            COUNT(CASE WHEN LOWER(channel) = 'chat' THEN 1 END) as chat_responses,
-                            COUNT(CASE WHEN LOWER(channel) = 'audio' THEN 1 END) as audio_responses
-                        FROM interview_sessions
-                        WHERE datetime(started_at) >= datetime(?)
+                            COUNT(CASE WHEN LOWER(channel_used) = 'web' THEN 1 END) as web_responses,
+                            COUNT(CASE WHEN LOWER(channel_used) = 'chat' THEN 1 END) as chat_responses,
+                            COUNT(CASE WHEN LOWER(channel_used) = 'audio' THEN 1 END) as audio_responses
+                        FROM respondent_experience
+                        WHERE datetime(created_at) >= datetime(?)
                     """, (start_dt,)).fetchone()
         except sqlite3.OperationalError:
             channel_stats = {
@@ -433,9 +432,7 @@ async def get_dashboard_overview(
             top_pages = conn.execute("""
                 SELECT wa.page_url, COUNT(*) as views
                 FROM website_analytics wa
-                LEFT JOIN users u ON wa.user_id = u.id
                 WHERE datetime(wa.created_at) >= datetime(?)
-                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
                 GROUP BY wa.page_url
                 ORDER BY views DESC
                 LIMIT 10
@@ -451,9 +448,7 @@ async def get_dashboard_overview(
                     COUNT(*) as page_views,
                     COUNT(DISTINCT wa.session_id) as unique_sessions
                 FROM website_analytics wa
-                LEFT JOIN users u ON wa.user_id = u.id
                 WHERE datetime(wa.created_at) >= datetime(?)
-                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
                 GROUP BY DATE(wa.created_at)
                 ORDER BY date ASC
             """, (start_dt,)).fetchall()
