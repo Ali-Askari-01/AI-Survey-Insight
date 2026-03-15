@@ -142,6 +142,7 @@ class AnalyticsDashboard {
                 padding: 20px;
                 max-width: 1400px;
                 margin: 0 auto;
+                padding-bottom: 180px;
             }
 
             .analytics-header {
@@ -319,6 +320,7 @@ class AnalyticsDashboard {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 24px;
+                margin-bottom: 20px;
             }
 
             .feedback-panel {
@@ -519,6 +521,7 @@ class AnalyticsDashboard {
             @media (max-width: 768px) {
                 .analytics-dashboard {
                     padding: 16px;
+                    padding-bottom: 210px;
                 }
                 
                 .analytics-header {
@@ -887,24 +890,82 @@ class AnalyticsDashboard {
         }
     }
 
-    showUserFeedbackModal() {
-        // Could implement detailed feedback modal
-        App.showModal('User Feedback', `
-            <p>Detailed user feedback management interface coming soon!</p>
-            <p>This will include filtering, status management, and response tracking.</p>
-        `, [
-            { text: 'Close', action: () => App.hideModal(), primary: false }
-        ]);
+    async showUserFeedbackModal() {
+        try {
+            const data = await API.get('/api/dashboard/user-feedback?limit=100');
+            const items = data.feedback_items || [];
+
+            const bodyHTML = items.length === 0
+                ? '<p class="text-muted">No user feedback available yet.</p>'
+                : `
+                    <div style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;">
+                        ${items.map(item => {
+                            const type = Helpers.escapeHtml((item.feedback_type || 'general').replace('_', ' '));
+                            const title = item.title ? `<div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Helpers.escapeHtml(item.title)}</div>` : '';
+                            const description = Helpers.escapeHtml(item.description || '');
+                            const date = item.created_at ? new Date(item.created_at).toLocaleString() : 'Unknown date';
+                            const rating = Number.isInteger(item.rating) ? `${'★'.repeat(item.rating)}${'☆'.repeat(5 - item.rating)}` : '';
+
+                            return `
+                                <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;">
+                                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:6px;">
+                                        <span style="font-size:0.75rem;padding:3px 8px;border-radius:999px;background:rgba(245,166,35,0.12);color:var(--accent-gold);text-transform:capitalize;">${type}</span>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);">${Helpers.escapeHtml(date)}</span>
+                                    </div>
+                                    ${title}
+                                    <div style="font-size:0.9rem;color:var(--text-secondary);line-height:1.45;">${description}</div>
+                                    ${rating ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--accent-gold);">${rating}</div>` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+            const footerHTML = '<button class="btn btn-primary" onclick="Helpers.closeModal()">Close</button>';
+            Helpers.openModal('All User Feedback', bodyHTML, footerHTML);
+        } catch (error) {
+            console.error('Failed to load full user feedback:', error);
+            Helpers.toast('Error', 'Unable to load full user feedback list.', 'error');
+        }
     }
 
-    showExperienceModal() {
-        // Could implement detailed experience modal
-        App.showModal('Respondent Experience', `
-            <p>Detailed experience analytics interface coming soon!</p>
-            <p>This will include experience trends, survey-specific insights, and satisfaction metrics.</p>
-        `, [
-            { text: 'Close', action: () => App.hideModal(), primary: false }
-        ]);
+    async showExperienceModal() {
+        try {
+            const data = await API.get(`/api/dashboard/respondent-experience?days=${this.currentPeriod}`);
+            const items = data.recent_feedback || [];
+
+            const bodyHTML = items.length === 0
+                ? '<p class="text-muted">No respondent experience feedback available yet.</p>'
+                : `
+                    <div style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;">
+                        ${items.map(item => {
+                            const surveyTitle = Helpers.escapeHtml(item.survey_title || 'Untitled survey');
+                            const date = item.created_at ? new Date(item.created_at).toLocaleString() : 'Unknown date';
+                            const quickFeedback = item.quick_feedback ? Helpers.escapeHtml(item.quick_feedback) : '';
+                            const suggestion = item.improvement_suggestion ? Helpers.escapeHtml(item.improvement_suggestion) : '';
+                            const rating = Number.isInteger(item.overall_rating) ? `${'★'.repeat(item.overall_rating)}${'☆'.repeat(5 - item.overall_rating)}` : '';
+
+                            return `
+                                <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;">
+                                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:6px;">
+                                        <span style="font-size:0.8rem;color:var(--text-primary);font-weight:600;">${surveyTitle}</span>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);">${Helpers.escapeHtml(date)}</span>
+                                    </div>
+                                    ${quickFeedback ? `<div style="font-size:0.9rem;color:var(--text-secondary);line-height:1.45;">${quickFeedback}</div>` : '<div style="font-size:0.85rem;color:var(--text-muted);">No quick comment provided.</div>'}
+                                    ${suggestion ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);"><strong>Suggestion:</strong> ${suggestion}</div>` : ''}
+                                    ${rating ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--accent-gold);">${rating}</div>` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+            const footerHTML = '<button class="btn btn-primary" onclick="Helpers.closeModal()">Close</button>';
+            Helpers.openModal('All Respondent Experience Feedback', bodyHTML, footerHTML);
+        } catch (error) {
+            console.error('Failed to load full respondent experience feedback:', error);
+            Helpers.toast('Error', 'Unable to load respondent experience list.', 'error');
+        }
     }
 
     setupAutoRefresh() {
