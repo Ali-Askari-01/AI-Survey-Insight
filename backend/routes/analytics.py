@@ -275,6 +275,7 @@ async def get_dashboard_overview(
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
+    start_dt = start_date.strftime("%Y-%m-%d %H:%M:%S")
 
     def _default_overview_payload() -> dict:
         return {
@@ -319,20 +320,22 @@ async def get_dashboard_overview(
         except sqlite3.OperationalError:
             wa_columns = set()
 
-        unique_visitors_expr = "COUNT(DISTINCT ip_address)" if "ip_address" in wa_columns else "COUNT(DISTINCT session_id)"
+        unique_visitors_expr = "COUNT(DISTINCT wa.ip_address)" if "ip_address" in wa_columns else "COUNT(DISTINCT wa.session_id)"
 
         # Website traffic metrics
         try:
             traffic_stats = conn.execute(f"""
                 SELECT 
                     COUNT(*) as page_views,
-                    COUNT(DISTINCT session_id) as unique_sessions,
-                    COUNT(DISTINCT user_id) as logged_in_users,
-                    AVG(time_on_page) as avg_time_on_page,
+                    COUNT(DISTINCT wa.session_id) as unique_sessions,
+                    COUNT(DISTINCT wa.user_id) as logged_in_users,
+                    AVG(wa.time_on_page) as avg_time_on_page,
                     {unique_visitors_expr} as unique_visitors
-                FROM website_analytics 
-                WHERE created_at >= ?
-            """, (start_date.isoformat(),)).fetchone()
+                FROM website_analytics wa
+                LEFT JOIN users u ON wa.user_id = u.id
+                WHERE datetime(wa.created_at) >= datetime(?)
+                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
+            """, (start_dt,)).fetchone()
         except sqlite3.OperationalError:
             traffic_stats = {
                 "page_views": 0,
@@ -347,10 +350,10 @@ async def get_dashboard_overview(
             user_stats = conn.execute("""
                 SELECT 
                     COUNT(DISTINCT id) as total_users,
-                    COUNT(DISTINCT CASE WHEN last_login >= ? THEN id END) as active_users,
-                    COUNT(DISTINCT CASE WHEN created_at >= ? THEN id END) as new_signups
+                    COUNT(DISTINCT CASE WHEN datetime(last_login) >= datetime(?) THEN id END) as active_users,
+                    COUNT(DISTINCT CASE WHEN datetime(created_at) >= datetime(?) THEN id END) as new_signups
                 FROM users
-            """, (start_date.isoformat(), start_date.isoformat())).fetchone()
+            """, (start_dt, start_dt)).fetchone()
         except sqlite3.OperationalError:
             user_stats = {"total_users": 0, "active_users": 0, "new_signups": 0}
         
@@ -364,10 +367,10 @@ async def get_dashboard_overview(
                     AVG(re.overall_rating) as avg_respondent_rating
                 FROM surveys s
                 LEFT JOIN survey_publications sp ON s.id = sp.survey_id
-                LEFT JOIN responses r ON s.id = r.survey_id AND r.created_at >= ?
-                LEFT JOIN respondent_experience re ON s.id = re.survey_id AND re.created_at >= ?
-                WHERE s.created_at >= ?
-            """, (start_date.isoformat(), start_date.isoformat(), start_date.isoformat())).fetchone()
+                LEFT JOIN responses r ON s.id = r.survey_id AND datetime(r.created_at) >= datetime(?)
+                LEFT JOIN respondent_experience re ON s.id = re.survey_id AND datetime(re.created_at) >= datetime(?)
+                WHERE datetime(s.created_at) >= datetime(?)
+            """, (start_dt, start_dt, start_dt)).fetchone()
         except sqlite3.OperationalError:
             survey_stats = {
                 "surveys_created": 0,
@@ -384,8 +387,21 @@ async def get_dashboard_overview(
                     COUNT(CASE WHEN LOWER(channel_used) = 'chat' THEN 1 END) as chat_responses,
                     COUNT(CASE WHEN LOWER(channel_used) = 'audio' THEN 1 END) as audio_responses
                 FROM respondent_experience
-                WHERE created_at >= ?
-            """, (start_date.isoformat(),)).fetchone()
+                WHERE datetime(created_at) >= datetime(?)
+            """, (start_dt,)).fetchone()
+
+            # Fallback for older datasets where respondent_experience may be sparse.
+            if channel_stats:
+                c = dict(channel_stats)
+                if (c.get("web_responses", 0) + c.get("chat_responses", 0) + c.get("audio_responses", 0)) == 0:
+                    channel_stats = conn.execute("""
+                        SELECT
+                            COUNT(CASE WHEN LOWER(channel) = 'web' THEN 1 END) as web_responses,
+                            COUNT(CASE WHEN LOWER(channel) = 'chat' THEN 1 END) as chat_responses,
+                            COUNT(CASE WHEN LOWER(channel) = 'audio' THEN 1 END) as audio_responses
+                        FROM interview_sessions
+                        WHERE datetime(started_at) >= datetime(?)
+                    """, (start_dt,)).fetchone()
         except sqlite3.OperationalError:
             channel_stats = {
                 "web_responses": 0,
@@ -402,8 +418,8 @@ async def get_dashboard_overview(
                     COUNT(DISTINCT CASE WHEN feedback_type = 'bug' THEN id END) as bug_reports,
                     COUNT(DISTINCT CASE WHEN feedback_type = 'feature_request' THEN id END) as feature_requests
                 FROM user_feedback 
-                WHERE created_at >= ?
-            """, (start_date.isoformat(),)).fetchone()
+                WHERE datetime(created_at) >= datetime(?)
+            """, (start_dt,)).fetchone()
         except sqlite3.OperationalError:
             feedback_stats = {
                 "total_feedback": 0,
@@ -415,13 +431,15 @@ async def get_dashboard_overview(
         # Top pages and conversion events
         try:
             top_pages = conn.execute("""
-                SELECT page_url, COUNT(*) as views
-                FROM website_analytics 
-                WHERE created_at >= ?
-                GROUP BY page_url
+                SELECT wa.page_url, COUNT(*) as views
+                FROM website_analytics wa
+                LEFT JOIN users u ON wa.user_id = u.id
+                WHERE datetime(wa.created_at) >= datetime(?)
+                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
+                GROUP BY wa.page_url
                 ORDER BY views DESC
                 LIMIT 10
-            """, (start_date.isoformat(),)).fetchall()
+            """, (start_dt,)).fetchall()
         except sqlite3.OperationalError:
             top_pages = []
         
@@ -429,14 +447,16 @@ async def get_dashboard_overview(
         try:
             daily_trend = conn.execute("""
                 SELECT 
-                    DATE(created_at) as date,
+                    DATE(wa.created_at) as date,
                     COUNT(*) as page_views,
-                    COUNT(DISTINCT session_id) as unique_sessions
-                FROM website_analytics 
-                WHERE created_at >= ?
-                GROUP BY DATE(created_at)
+                    COUNT(DISTINCT wa.session_id) as unique_sessions
+                FROM website_analytics wa
+                LEFT JOIN users u ON wa.user_id = u.id
+                WHERE datetime(wa.created_at) >= datetime(?)
+                  AND (u.role IS NULL OR LOWER(u.role) NOT IN ('founder', 'admin'))
+                GROUP BY DATE(wa.created_at)
                 ORDER BY date ASC
-            """, (start_date.isoformat(),)).fetchall()
+            """, (start_dt,)).fetchall()
         except sqlite3.OperationalError:
             daily_trend = []
 
