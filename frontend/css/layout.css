@@ -15,7 +15,7 @@
     flex-direction: column;
     z-index: 1000;
     transition: width var(--transition-normal), transform var(--transition-normal);
-    overflow: hidden;
+    overflow: visible;
     border-right: 1px solid var(--border-subtle);
 }
 
@@ -635,34 +635,61 @@ body[data-role="admin"] .founder-only {
     display: inline-flex;
     align-items: center;
 }
+.role-tooltip-trigger i {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.role-tooltip-trigger:hover i,
+.role-tooltip-trigger:focus i {
+    color: var(--text-primary);
+}
 .role-tooltip-trigger:hover .role-tooltip,
 .role-tooltip-trigger:focus .role-tooltip {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
+    transform: translateY(-50%) scale(1);
 }
 .role-tooltip {
     position: absolute;
-    left: 100%;
+    left: calc(100% + 10px);
     top: 50%;
-    transform: translateY(-50%) translateX(4px);
-    width: 220px;
-    background: var(--bg-elevated);
+    transform: translateY(-50%) scale(0.98);
+    width: min(300px, calc(100vw - 48px));
+    background: #1e2b43;
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 10px 12px;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: var(--text-secondary);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--text-primary);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 2000;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.45);
     text-transform: none;
     letter-spacing: 0;
     font-weight: 400;
     white-space: normal;
+}
+.role-tooltip::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    transform: translateY(-50%) rotate(45deg);
+    background: #1e2b43;
+    border-left: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 1024px) {
+    .role-tooltip-trigger:hover .role-tooltip,
+    .role-tooltip-trigger:focus .role-tooltip {
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
