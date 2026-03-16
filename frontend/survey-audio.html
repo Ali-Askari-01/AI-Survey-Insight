@@ -282,6 +282,7 @@
         async function initAudioInterview() {
             const urlParams = new URLSearchParams(window.location.search);
             surveyId = urlParams.get('survey_id') || urlParams.get('share_code');
+            if (surveyId === 'demo') surveyId = '1';
             
             if (!surveyId) {
                 showStatus('error', 'Invalid survey link. Please check the URL.');
@@ -349,12 +350,12 @@
                     }
                     const surveyData = await response.json();
                     surveyMeta = surveyData;
-                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10);
+                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10) || 1;
                     questions = surveyData.questions || [];
                 }
             } catch (error) {
                 console.error('Failed to load questions:', error);
-                resolvedSurveyId = parseInt(surveyId, 10);
+                resolvedSurveyId = parseInt(surveyId, 10) || 1;
                 // Fallback questions
                 questions = [
                     { id: 1, question_text: "Tell me about your overall experience with our product or service." },

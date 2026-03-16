@@ -265,6 +265,7 @@
         async function initChat() {
             const urlParams = new URLSearchParams(window.location.search);
             surveyId = urlParams.get('survey_id') || urlParams.get('share_code');
+            if (surveyId === 'demo') surveyId = '1';
             
             if (!surveyId) {
                 showStatus('error', 'Invalid survey link. Please check the URL.');
@@ -286,7 +287,7 @@
                         throw new Error('Survey not found');
                     }
                     const surveyData = await surveyResponse.json();
-                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10);
+                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10) || 1;
                     if (surveyData.title) {
                         document.querySelector('.chat-header h1').textContent = surveyData.title;
                     }
