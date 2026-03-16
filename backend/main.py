@@ -261,6 +261,30 @@ def serve_frontend():
     return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 
+@app.get("/survey-form.html")
+def serve_survey_form_page():
+    """Serve respondent web-form survey page."""
+    return FileResponse(os.path.join(frontend_dir, "survey-form.html"))
+
+
+@app.get("/survey-chat.html")
+def serve_survey_chat_page():
+    """Serve respondent chat survey page."""
+    return FileResponse(os.path.join(frontend_dir, "survey-chat.html"))
+
+
+@app.get("/survey-audio.html")
+def serve_survey_audio_page():
+    """Serve respondent voice survey page."""
+    return FileResponse(os.path.join(frontend_dir, "survey-audio.html"))
+
+
+@app.get("/interview.html")
+def serve_interview_page():
+    """Serve respondent interview landing page."""
+    return FileResponse(os.path.join(frontend_dir, "interview.html"))
+
+
 @app.get("/interview/{share_code}")
 def serve_interview_landing(share_code: str):
     """Serve the respondent interview landing page (choose channel)."""

@@ -275,11 +275,13 @@
         let isRecording = false;
         let currentTranscript = '';
         let interviewStarted = false;
+        let resolvedSurveyId = null;
+        let surveyMeta = null;
 
         // Initialize
         async function initAudioInterview() {
             const urlParams = new URLSearchParams(window.location.search);
-            surveyId = urlParams.get('survey_id');
+            surveyId = urlParams.get('survey_id') || urlParams.get('share_code');
             
             if (!surveyId) {
                 showStatus('error', 'Invalid survey link. Please check the URL.');
@@ -298,13 +300,16 @@
         async function startInterview() {
             try {
                 showStatus('info', 'Starting your interview...');
+
+                // Resolve and load survey before creating a session
+                await loadQuestions();
                 
                 // Create session
                 const sessionResponse = await fetch('/api/interviews/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        survey_id: surveyId,
+                        survey_id: resolvedSurveyId,
                         channel: 'audio',
                         device_type: detectDevice(),
                         language: 'en'
@@ -313,9 +318,6 @@
                 
                 const sessionData = await sessionResponse.json();
                 sessionId = sessionData.session_id;
-                
-                // Load questions
-                await loadQuestions();
                 
                 // Switch to interview screen
                 document.getElementById('welcome-screen').style.display = 'none';
@@ -334,11 +336,25 @@
         
         async function loadQuestions() {
             try {
-                const response = await fetch(`/api/surveys/${surveyId}`);
-                const surveyData = await response.json();
-                questions = surveyData.questions || [];
+                const publishedResponse = await fetch(`/api/publish/s/${encodeURIComponent(surveyId)}`);
+                if (publishedResponse.ok) {
+                    const publishedData = await publishedResponse.json();
+                    surveyMeta = publishedData;
+                    resolvedSurveyId = publishedData.survey_id;
+                    questions = publishedData.questions || [];
+                } else {
+                    const response = await fetch(`/api/surveys/${encodeURIComponent(surveyId)}`);
+                    if (!response.ok) {
+                        throw new Error('Survey not found');
+                    }
+                    const surveyData = await response.json();
+                    surveyMeta = surveyData;
+                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10);
+                    questions = surveyData.questions || [];
+                }
             } catch (error) {
                 console.error('Failed to load questions:', error);
+                resolvedSurveyId = parseInt(surveyId, 10);
                 // Fallback questions
                 questions = [
                     { id: 1, question_text: "Tell me about your overall experience with our product or service." },
@@ -557,8 +573,8 @@
         function showExperienceWidget() {
             if (document.getElementById('experienceWidget')) return; // Already shown
             
-            const sessionId = surveyData.session_id || 'session_' + Date.now();
-            const surveyId = surveyData.survey_id || 1;
+            const feedbackSessionId = sessionId || ('session_' + Date.now());
+            const feedbackSurveyId = resolvedSurveyId || parseInt(surveyId, 10) || 1;
             
             const widgetHTML = `
                 <div class="experience-widget" id="experienceWidget" style="
@@ -607,7 +623,7 @@
                             background: transparent; border: none; color: var(--text-muted);
                             padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
                         ">Skip</button>
-                        <button onclick="submitExperience('${sessionId}', ${surveyId})" style="
+                        <button onclick="submitExperience('${feedbackSessionId}', ${feedbackSurveyId})" style="
                             background: var(--gold); border: none; color: white;
                             padding: 6px 12px; border-radius: 6px; font-size: 0.75rem;
                             cursor: pointer; font-weight: 500;
@@ -653,7 +669,7 @@
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
-                        survey_id: parseInt(surveyId),
+                        survey_id: Number(surveyId) || 1,
                         overall_rating: rating,
                         quick_feedback: comment || null,
                         completion_time: Date.now() - (window.surveyStartTime || Date.now()),

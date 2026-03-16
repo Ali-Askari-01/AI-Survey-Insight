@@ -259,11 +259,12 @@
         let audioChunks = [];
         let isRecording = false;
         let conversationStarted = false;
+        let resolvedSurveyId = null;
 
         // Initialize chat
         async function initChat() {
             const urlParams = new URLSearchParams(window.location.search);
-            surveyId = urlParams.get('survey_id');
+            surveyId = urlParams.get('survey_id') || urlParams.get('share_code');
             
             if (!surveyId) {
                 showStatus('error', 'Invalid survey link. Please check the URL.');
@@ -271,12 +272,32 @@
             }
             
             try {
+                // Resolve both numeric survey IDs and published share codes
+                const publishedResponse = await fetch(`/api/publish/s/${encodeURIComponent(surveyId)}`);
+                if (publishedResponse.ok) {
+                    const publishedData = await publishedResponse.json();
+                    resolvedSurveyId = publishedData.survey_id;
+                    if (publishedData.title) {
+                        document.querySelector('.chat-header h1').textContent = publishedData.title;
+                    }
+                } else {
+                    const surveyResponse = await fetch(`/api/surveys/${encodeURIComponent(surveyId)}`);
+                    if (!surveyResponse.ok) {
+                        throw new Error('Survey not found');
+                    }
+                    const surveyData = await surveyResponse.json();
+                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10);
+                    if (surveyData.title) {
+                        document.querySelector('.chat-header h1').textContent = surveyData.title;
+                    }
+                }
+
                 // Create session
                 const sessionResponse = await fetch('/api/interviews/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        survey_id: surveyId,
+                        survey_id: resolvedSurveyId,
                         channel: 'chat',
                         device_type: detectDevice(),
                         language: 'en'
@@ -506,8 +527,8 @@
         function showExperienceWidget() {
             if (document.getElementById('experienceWidget')) return; // Already shown
             
-            const sessionId = surveyData.session_id || 'session_' + Date.now();
-            const surveyId = surveyData.survey_id || 1;
+            const feedbackSessionId = sessionId || ('session_' + Date.now());
+            const feedbackSurveyId = resolvedSurveyId || parseInt(surveyId, 10) || 1;
             
             const widgetHTML = `
                 <div class="experience-widget" id="experienceWidget" style="
@@ -556,7 +577,7 @@
                             background: transparent; border: none; color: var(--text-muted);
                             padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
                         ">Skip</button>
-                        <button onclick="submitExperience('${sessionId}', ${surveyId})" style="
+                        <button onclick="submitExperience('${feedbackSessionId}', ${feedbackSurveyId})" style="
                             background: var(--gold); border: none; color: white;
                             padding: 6px 12px; border-radius: 6px; font-size: 0.75rem;
                             cursor: pointer; font-weight: 500;
