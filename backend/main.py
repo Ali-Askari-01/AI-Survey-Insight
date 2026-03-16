@@ -185,6 +185,11 @@ async def startup():
 
     import logging
     logger = logging.getLogger("server")
+    from .database import DB_PATH
+
+    logger.info(f"[DB] Using SQLite path: {DB_PATH}")
+    if os.environ.get("APP_ENV") == "production" and not DB_PATH.startswith("/data"):
+        logger.warning("[DB] Production is not using /data persistent volume; survey data may reset on redeploy")
 
     # Initialize database (creates new tables: ai_metadata, event_log, hitl_corrections, pipeline_executions)
     init_db()

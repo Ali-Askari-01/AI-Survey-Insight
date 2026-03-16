@@ -23,9 +23,7 @@ from typing import Dict, Any, List, Optional
 import sqlite3
 import os
 from collections import defaultdict
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "survey_engine.db")
-
+from ..database import DB_PATH
 
 def _get_conn():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

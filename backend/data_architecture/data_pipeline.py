@@ -23,10 +23,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
-
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "survey_engine.db")
-
+from ..database import DB_PATH
 
 def _get_conn():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

@@ -9,9 +9,25 @@ import json
 from datetime import datetime
 from contextlib import contextmanager
 
-# Railway volumes: set DATA_DIR env var to the mount path (e.g. /data)
-# Falls back to ../data relative to this file (works locally and in Docker)
-_data_dir = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data"))
+def _resolve_data_dir() -> str:
+    """Resolve persistent data directory with safe fallbacks.
+
+    Priority:
+    1) DATA_DIR env var (explicit override)
+    2) /data (Railway persistent volume mount if configured)
+    3) ../data (local/dev fallback)
+    """
+    env_data_dir = os.environ.get("DATA_DIR", "").strip()
+    if env_data_dir:
+        return env_data_dir
+
+    if os.path.isdir("/data"):
+        return "/data"
+
+    return os.path.join(os.path.dirname(__file__), "..", "data")
+
+
+_data_dir = _resolve_data_dir()
 DB_PATH = os.path.join(_data_dir, "survey_engine.db")
 
 # Track if WAL mode has been set this process
