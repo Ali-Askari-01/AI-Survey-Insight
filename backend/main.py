@@ -412,6 +412,8 @@ def health_check():
             "engine": "sqlite",
             "journal_mode": journal_mode,
             "size_mb": db_size_mb,
+            "path": DB_PATH,
+            "persistent_storage": DB_PATH.startswith("/data"),
         },
         "memory": memory_info,
         "disk": disk_info,
