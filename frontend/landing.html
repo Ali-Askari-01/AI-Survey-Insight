@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="InsightAI — Turn conversations into clarity with AI-powered surveys, adaptive chat interviews, and real-time insight generation.">
     <title>InsightAI — AI-Powered Survey & Insight Engine</title>
     
@@ -16,6 +16,7 @@
     
     <!-- Stylesheet -->
     <link rel="stylesheet" href="/css/landing.css">
+    <link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body class="landing-page">
     <!-- Animated Background Orbs -->
@@ -32,6 +33,9 @@
             <i class="fas fa-sparkles"></i>
             InsightAI
         </a>
+        <button class="nav-hamburger" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
         <div class="landing-nav-links">
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
@@ -391,6 +395,25 @@
 
             run();
         };
+
+        // Hamburger Menu Toggle
+        const hamburger = document.querySelector('.nav-hamburger');
+        const navLinks  = document.querySelector('.landing-nav-links');
+        if (hamburger && navLinks) {
+            hamburger.addEventListener('click', () => {
+                const isOpen = navLinks.classList.toggle('open');
+                hamburger.classList.toggle('open', isOpen);
+                hamburger.setAttribute('aria-expanded', isOpen);
+            });
+            // Close menu when any nav link is clicked
+            navLinks.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    navLinks.classList.remove('open');
+                    hamburger.classList.remove('open');
+                    hamburger.setAttribute('aria-expanded', 'false');
+                });
+            });
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {

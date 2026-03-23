@@ -1,0 +1,716 @@
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE STYLES — Mobile-First Breakpoints
+   Fixes for mobile, small, and xsmall devices
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ──── G1: Box Sizing Reset ──── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ──── G2: Safe Area Insets for iPhone Notch ──── */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ──── MOBILE BREAKPOINT: max-width 768px ──── */
+@media (max-width: 768px) {
+  /* G3: iOS Input Zoom Prevention */
+  input, textarea, select, button {
+    font-size: 16px !important;
+  }
+
+  /* G4: Minimum Tap Target Size (44×44px) */
+  a, button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ──── L1: Landing Nav / Header ──── */
+  .landing-nav {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    padding: 0 16px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: inherit;
+    backdrop-filter: blur(12px);
+  }
+
+  .landing-nav-links {
+    display: none;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background: var(--lp-bg, #030712);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 12px 0;
+    z-index: 998;
+  }
+
+  .landing-nav-links.open {
+    display: flex;
+  }
+
+  .landing-nav-links a, .landing-nav-links li a {
+    display: block;
+    padding: 14px 24px;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    text-decoration: none;
+  }
+
+  .landing-nav-links a:last-child {
+    border-bottom: none;
+  }
+
+  /* Hamburger Icon */
+  .nav-hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    min-height: unset;
+    min-width: unset;
+  }
+
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    border-radius: 2px;
+    transition: all 0.3s;
+  }
+
+  .nav-hamburger.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .nav-hamburger.open span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .nav-hamburger.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* Keep CTA button visible but compact */
+  .landing-nav .btn-cta-sm, .landing-nav a[href*="app"] {
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+    min-height: unset;
+  }
+
+  /* ──── L2: Hero Section ──── */
+  .landing-hero {
+    padding: 60px 16px 40px;
+    text-align: center;
+  }
+
+  .landing-hero h1, .hero-title {
+    font-size: clamp(28px, 9vw, 42px);
+    line-height: 1.15;
+  }
+
+  .landing-hero p, .hero-subtitle {
+    font-size: 15px;
+    line-height: 1.7;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Hero Buttons — Stack Vertically */
+  .hero-cta-group {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px;
+    width: 100%;
+    margin-top: 24px;
+  }
+
+  .hero-cta-group a,
+  .hero-cta-group button {
+    width: 100% !important;
+    text-align: center;
+    padding: 15px 20px;
+    font-size: 16px;
+  }
+
+  /* Hero Trust Row */
+  .hero-trust-row {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .hero-trust-row span {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  /* ──── L3: Powered by Badge ──── */
+  .hero-badge, .powered-badge, [class*="powered"], [class*="gemini-badge"] {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 5px 12px;
+    max-width: 90vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ──── L4: Stats Bar ──── */
+  .stats-bar, .stats-row, [class*="stats"] {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 20px 16px;
+    overflow-x: unset;
+  }
+
+  .stat-item, .metric-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  .stat-number, .metric-number {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label, .metric-label, .stat-desc {
+    font-size: 11px;
+    margin-top: 4px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Full width for first item */
+  .stats-bar .stat-item:first-child,
+  .stats-row .stat-item:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* ──── L5: Features Grid ──── */
+  #features, .landing-section#features, .features-section {
+    padding: 48px 16px;
+  }
+
+  .features-grid, #features .grid, [class*="feature"][class*="grid"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .feature-card, [class*="feature-card"] {
+    padding: 20px 18px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .feature-card .icon, .feature-icon {
+    font-size: 28px;
+  }
+
+  .feature-card h3 {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .feature-card p {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  /* ──── L6: How It Works Section ──── */
+  #how-it-works, .landing-section#how-it-works, .how-it-works {
+    padding: 48px 16px;
+  }
+
+  .steps-grid, .steps-row, [class*="steps"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+
+  /* Hide connector lines */
+  .step-connector, .step-arrow, .connector, [class*="arrow"], [class*="connector"] {
+    display: none !important;
+  }
+
+  .step-card, .step-item, .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .step-card:last-child, .step-item:last-child, .step:last-child {
+    border-bottom: none;
+  }
+
+  .step-number {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+    min-width: 44px;
+    color: var(--accent-gold, #F5A623);
+  }
+
+  .step-card h3, .step-content h3 {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .step-card p, .step-content p {
+    font-size: 13px;
+    line-height: 1.6;
+    opacity: 0.75;
+  }
+
+  /* ──── L7: Testimonials Grid ──── */
+  #testimonials, .landing-section#testimonials, .testimonials-section {
+    padding: 48px 16px;
+  }
+
+  .testimonials-grid, [class*="testimonial"][class*="grid"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+  }
+
+  .testimonial-card, [class*="testimonial-card"] {
+    width: 100% !important;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .testimonial-card blockquote, .testimonial-card p.quote {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .testimonial-author {
+    margin-top: 16px;
+    font-size: 13px;
+  }
+
+  .testimonial-role {
+    font-size: 12px;
+    opacity: 0.65;
+  }
+
+  /* ──── L8: Final CTA Section ──── */
+  .cta-section, .cta-banner, .final-cta, section:last-of-type {
+    padding: 52px 20px;
+    text-align: center;
+  }
+
+  .cta-section h2, .cta-banner h2 {
+    font-size: clamp(22px, 7vw, 36px);
+    line-height: 1.2;
+  }
+
+  .cta-section p, .cta-banner p {
+    font-size: 15px;
+  }
+
+  .cta-section a, .cta-section button, .cta-banner a, .cta-banner button {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    margin: 16px auto 0;
+    text-align: center;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  /* ──── L9: Section Headings ──── */
+  section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  section h2 {
+    font-size: clamp(22px, 6.5vw, 34px);
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  section > p, .section-subtitle {
+    font-size: 15px;
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  /* ──── L10: Footer ──── */
+  .landing-footer {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+    gap: 12px;
+    padding: 28px 16px;
+  }
+
+  .landing-footer p, .landing-footer span {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  .landing-footer a {
+    margin: 4px 0;
+    display: inline-block;
+  }
+
+  /* ──── A1: Sidebar Navigation (App Page) ──── */
+  .sidebar, nav.sidebar, aside.sidebar, [class*="sidebar"] {
+    position: fixed !important;
+    top: 0;
+    left: -280px;
+    width: 260px !important;
+    height: 100vh;
+    z-index: 500;
+    overflow-y: auto;
+    transition: left 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  .sidebar.open, [class*="sidebar"].open {
+    left: 0 !important;
+  }
+
+  /* Dark overlay behind open sidebar */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 499;
+    backdrop-filter: blur(2px);
+  }
+
+  .sidebar-overlay.visible {
+    display: block;
+  }
+
+  /* Main content fills full width */
+  .main-content, .app-main, main, [class*="main-content"] {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 16px !important;
+  }
+
+  /* Show hamburger toggle in top bar */
+  .sidebar-toggle, .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 8px;
+    color: inherit;
+    min-height: 44px;
+  }
+
+  /* ──── A2: Auth Modal / Forms ──── */
+  .auth-container, .modal, [class*="auth"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: unset !important;
+    padding: 28px 20px;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .auth-container input, .auth-container button, [class*="auth"] input, [class*="auth"] button {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  .auth-container h2, [class*="auth"] h2 {
+    font-size: 22px;
+    text-align: center;
+  }
+
+  .google-btn, [class*="google"] {
+    width: 100%;
+    padding: 13px;
+    font-size: 15px;
+  }
+
+  /* ──── A3: Dashboard Grid ──── */
+  .dashboard-grid, [class*="dashboard"][class*="grid"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 20px;
+  }
+
+  .stat-card, .dashboard-card, .metric-card, [class*="stat-card"] {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  /* ──── A4: Notifications Panel ──── */
+  .notifications-panel, [class*="notification"][class*="panel"] {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100%;
+    border-radius: 12px;
+    margin-top: 16px;
+  }
+
+  /* ──── A5: Role Switcher ──── */
+  .role-switcher, .role-selector, [class*="role"], [class*="view-as"] {
+    width: 100%;
+  }
+
+  .role-switcher select, .role-selector select, [class*="role"] select {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  /* ──── A6: Chat UI ──── */
+  .chat-container, [class*="chat-container"] {
+    height: calc(100dvh - 60px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages, [class*="chat-messages"] {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .chat-bubble, [class*="bubble"] {
+    max-width: 85%;
+    font-size: 15px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    line-height: 1.5;
+  }
+
+  .chat-input-bar, [class*="chat-input"] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255,255,255,0.08);
+    position: sticky;
+    bottom: 0;
+    background: inherit;
+  }
+
+  .chat-input-bar input, [class*="chat-input"] input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: 24px;
+  }
+
+  .chat-send-btn, [class*="send-btn"] {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ──── A7: Voice Input Interface ──── */
+  .voice-container, [class*="voice"] {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .voice-btn, [class*="voice-btn"], [class*="record-btn"] {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .transcript-area, [class*="transcript"] {
+    width: 100%;
+    min-height: 120px;
+    font-size: 15px;
+    padding: 14px;
+    border-radius: 12px;
+    line-height: 1.6;
+  }
+
+  /* ──── A8: App Top Bar ──── */
+  .app-header, .topbar, .app-topbar, [class*="app-header"] {
+    height: 56px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .app-header .logo, .topbar .logo {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* Hide version label on mobile */
+  .version-label, [class*="version"] {
+    display: none;
+  }
+}
+
+/* ──── SMALL BREAKPOINT: max-width 480px ──── */
+@media (max-width: 480px) {
+  .landing-nav {
+    padding: 0 12px;
+  }
+
+  .landing-logo {
+    font-size: 1.2rem;
+  }
+
+  .hero-cta-group {
+    gap: 10px;
+  }
+
+  .hero-cta-group a, .hero-cta-group button {
+    padding: 13px 16px;
+    font-size: 15px;
+  }
+
+  /* Reduce padding on sections */
+  section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .stats-bar {
+    padding: 16px 12px;
+  }
+
+  .feature-card, .featured-card {
+    padding: 16px 14px;
+  }
+
+  .step-card, .step-item {
+    padding: 14px 0;
+  }
+
+  .testimonial-card {
+    padding: 16px 14px;
+  }
+}
+
+/* ──── XSMALL BREAKPOINT: max-width 375px ──── */
+@media (max-width: 375px) {
+  .landing-hero h1, .hero-title {
+    font-size: 26px;
+  }
+
+  section h2 {
+    font-size: 20px;
+  }
+
+  .stat-number, .metric-number {
+    font-size: 22px;
+  }
+
+  .step-number {
+    font-size: 30px;
+  }
+
+  section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .hero-trust-row {
+    gap: 6px;
+  }
+
+  .hero-trust-row span {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+}
+
+/* ──── Desktop: Show hamburger only on mobile ──── */
+@media (min-width: 769px) {
+  .sidebar-toggle, .mobile-menu-btn, .nav-hamburger {
+    display: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  .landing-nav-links {
+    display: flex !important;
+    position: static !important;
+    gap: 36px;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    flex-direction: row !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    width: auto !important;
+  }
+
+  .main-content {
+    margin-left: auto !important;
+  }
+}

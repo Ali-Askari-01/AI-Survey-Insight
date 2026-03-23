@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="AI Feedback & Insight Engine - Multi-Channel Survey Platform">
     <title>AI Insight Engine</title>
     
@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/auth.css">
     <link rel="stylesheet" href="/css/feedback.css">
+    <link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
     <!-- ═══════════════════════════════════════════ -->
@@ -265,6 +266,11 @@
     </main>
 
     <!-- ═══════════════════════════════════════════ -->
+    <!-- SIDEBAR OVERLAY (Mobile)                   -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ═══════════════════════════════════════════ -->
     <!-- MODAL OVERLAY                              -->
     <!-- ═══════════════════════════════════════════ -->
     <div class="modal-overlay" id="modal-overlay">
@@ -334,6 +340,37 @@
         <i class="fas fa-plus"></i>
         <span class="fab-label">New Survey</span>
     </button>
+
+    <!-- Sidebar Toggle Script (Mobile) -->
+    <script>
+        const sidebarToggle  = document.querySelector('.sidebar-toggle, .mobile-menu-btn');
+        const sidebar        = document.querySelector('.sidebar, [class*="sidebar"]');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                if (sidebarOverlay) sidebarOverlay.classList.toggle('visible');
+            });
+        }
+        if (sidebarOverlay && sidebar) {
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('visible');
+            });
+        }
+        // Close sidebar on nav link click (mobile UX)
+        if (sidebar) {
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('open');
+                        if (sidebarOverlay) sidebarOverlay.classList.remove('visible');
+                    }
+                });
+            });
+        }
+    </script>
 
     <script src="/js/utils/api.js"></script>
     <script src="/js/utils/helpers.js"></script>
