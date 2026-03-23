@@ -47,6 +47,23 @@ services:
     networks:
       - app-network
 
+  # ─── Next.js Frontend ───
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-survey-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
   # ─── AI Worker (Background Processing — Scalable) ───
   ai-worker:
     build:
