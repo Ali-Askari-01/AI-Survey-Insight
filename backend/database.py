@@ -61,6 +61,136 @@ def get_db_connection():
         conn.close()
 
 
+def _column_exists(cursor, table_name: str, column_name: str) -> bool:
+    """Check whether a column exists on a SQLite table."""
+    rows = cursor.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return any(row[1] == column_name for row in rows)
+
+
+def _delete_where_in(cursor, table_name: str, column_name: str, values: list):
+    """Delete rows using a safe IN clause for variable-length identifiers."""
+    if not values:
+        return
+    placeholders = ",".join("?" for _ in values)
+    cursor.execute(f"DELETE FROM {table_name} WHERE {column_name} IN ({placeholders})", values)
+
+
+def _cleanup_demo_surveys(cursor) -> int:
+    """Remove known demo/fake surveys and dependent records from legacy databases."""
+    table_rows = cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    tables = {row[0] for row in table_rows}
+    if "surveys" not in tables:
+        return 0
+
+    demo_surveys = cursor.execute("""
+        SELECT id, research_goal_id
+        FROM surveys
+        WHERE (
+            LOWER(COALESCE(title, '')) LIKE '%demo%'
+            OR LOWER(COALESCE(title, '')) LIKE '%sample%'
+            OR LOWER(COALESCE(title, '')) LIKE '%fake%'
+            OR LOWER(COALESCE(title, '')) IN (
+                'quick test',
+                'respondent feature test',
+                'e2e test survey',
+                'delete test survey',
+                'smoke test survey'
+            )
+        )
+        OR LOWER(COALESCE(title, '')) = 'app churn discovery interview'
+        OR LOWER(COALESCE(description, '')) = 'ai-guided interview to discover why new users disengage'
+    """).fetchall()
+
+    if not demo_surveys:
+        return 0
+
+    deleted_count = 0
+    goal_ids = set()
+
+    for survey_id, goal_id in demo_surveys:
+        if goal_id:
+            goal_ids.add(goal_id)
+
+        session_ids = []
+        if "interview_sessions" in tables:
+            session_rows = cursor.execute(
+                "SELECT session_id FROM interview_sessions WHERE survey_id = ?",
+                (survey_id,)
+            ).fetchall()
+            session_ids = [row[0] for row in session_rows]
+
+        if session_ids:
+            for table_name in ["semantic_memory", "response_segments", "voice_data", "conversation_history", "full_transcripts"]:
+                if table_name in tables:
+                    _delete_where_in(cursor, table_name, "session_id", session_ids)
+
+            if "responses" in tables:
+                response_rows = cursor.execute(
+                    f"SELECT id FROM responses WHERE session_id IN ({','.join('?' for _ in session_ids)})",
+                    session_ids
+                ).fetchall()
+                response_ids = [row[0] for row in response_rows]
+                if response_ids and "sentiment_records" in tables and _column_exists(cursor, "sentiment_records", "response_id"):
+                    _delete_where_in(cursor, "sentiment_records", "response_id", response_ids)
+                _delete_where_in(cursor, "responses", "session_id", session_ids)
+
+        survey_scoped_tables = [
+            "survey_respondents",
+            "chatbot_conversations",
+            "survey_publications",
+            "recommendations",
+            "insights",
+            "themes",
+            "sentiment_records",
+            "reports",
+            "notifications",
+            "engagement_metrics",
+            "respondent_experience",
+            "feature_usage",
+            "llm_usage",
+            "conversation_flow",
+            "questions",
+            "interview_sessions",
+        ]
+        for table_name in survey_scoped_tables:
+            if table_name in tables:
+                cursor.execute(f"DELETE FROM {table_name} WHERE survey_id = ?", (survey_id,))
+
+        cursor.execute("DELETE FROM surveys WHERE id = ?", (survey_id,))
+        deleted_count += 1
+
+    # Remove orphaned demo goals only when they are no longer linked to any survey.
+    if "research_goals" in tables:
+        for goal_id in goal_ids:
+            linked_surveys = cursor.execute(
+                "SELECT COUNT(*) FROM surveys WHERE research_goal_id = ?",
+                (goal_id,)
+            ).fetchone()[0]
+            if linked_surveys:
+                continue
+
+            goal = cursor.execute(
+                "SELECT title, description FROM research_goals WHERE id = ?",
+                (goal_id,)
+            ).fetchone()
+            if not goal:
+                continue
+
+            title = (goal[0] or "").lower()
+            description = (goal[1] or "").lower()
+            if (
+                title == "user churn analysis"
+                or "demo" in title
+                or "sample" in title
+                or "fake" in title
+                or "test" in title
+                or "demo" in description
+            ):
+                cursor.execute("DELETE FROM research_goals WHERE id = ?", (goal_id,))
+
+    return deleted_count
+
+
 def init_db():
     """Initialize all database tables."""
     conn = get_db()
@@ -768,6 +898,45 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_trail(created_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_trail(user_id)")
 
+    # ═══════════════════════════════════════════════════
+    # OWNERSHIP MIGRATION — Per-user survey/goal ownership
+    # ═══════════════════════════════════════════════════
+    if not _column_exists(cursor, "research_goals", "owner_user_id"):
+        cursor.execute("ALTER TABLE research_goals ADD COLUMN owner_user_id INTEGER")
+
+    if not _column_exists(cursor, "surveys", "owner_user_id"):
+        cursor.execute("ALTER TABLE surveys ADD COLUMN owner_user_id INTEGER")
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_research_goals_owner ON research_goals(owner_user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_surveys_owner ON surveys(owner_user_id)")
+
+    # Backfill legacy surveys from publication owner.
+    cursor.execute("""
+        UPDATE surveys
+        SET owner_user_id = (
+            SELECT sp.user_id
+            FROM survey_publications sp
+            WHERE sp.survey_id = surveys.id
+            ORDER BY sp.created_at ASC
+            LIMIT 1
+        )
+        WHERE owner_user_id IS NULL
+    """)
+
+    # Backfill legacy goals from associated survey owners.
+    cursor.execute("""
+        UPDATE research_goals
+        SET owner_user_id = (
+            SELECT s.owner_user_id
+            FROM surveys s
+            WHERE s.research_goal_id = research_goals.id
+              AND s.owner_user_id IS NOT NULL
+            ORDER BY s.created_at ASC
+            LIMIT 1
+        )
+        WHERE owner_user_id IS NULL
+    """)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -939,159 +1108,13 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON daily_metrics(date_recorded)")
 
+    removed_demo_count = _cleanup_demo_surveys(cursor)
+
     conn.commit()
     conn.close()
+    if removed_demo_count:
+        print(f"Removed {removed_demo_count} demo/fake surveys during initialization.")
     print("Database initialized successfully.")
-
-
-def seed_demo_data():
-    """Seed database with demo data for all features."""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Check if data exists
-    cursor.execute("SELECT COUNT(*) FROM surveys")
-    if cursor.fetchone()[0] > 0:
-        conn.close()
-        return
-
-    # Research Goal
-    cursor.execute("""
-        INSERT INTO research_goals (title, description, research_type, problem_space, target_outcome, target_audience, success_criteria, estimated_duration, quality_score, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        "User Churn Analysis",
-        "Understand why users stop using the mobile app after the first week",
-        "discovery",
-        "User retention and onboarding",
-        "Identify top 3 friction points causing early churn",
-        "Users who signed up in last 30 days but became inactive",
-        "Identify 3+ recurring onboarding friction points with 85%+ confidence",
-        6, 91.0, "active"
-    ))
-
-    # Survey
-    cursor.execute("""
-        INSERT INTO surveys (research_goal_id, title, description, status, channel_type, estimated_duration, interview_style, total_responses)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        1, "App Churn Discovery Interview",
-        "AI-guided interview to discover why new users disengage",
-        "active", "multi", 6, 'balanced', 247
-    ))
-
-    # Questions
-    questions_data = [
-        ("Tell me about your first experience using the app.", "open_ended", None, 0, 1, None, '["why", "example", "emotion"]', "friendly", 1),
-        ("What were you trying to accomplish?", "open_ended", None, 1, 1, None, '["impact", "expectation"]', "neutral", 1),
-        ("Did you face any issues during checkout?", "yes_no", '["Yes", "No"]', 2, 1, '{"yes": 4, "no": 5}', '["describe", "frequency"]', "neutral", 2),
-        ("Please describe what happened during checkout.", "open_ended", None, 3, 1, '{"parent": 3, "condition": "yes"}', '["emotion", "impact"]', "empathetic", 3),
-        ("How would you rate the overall onboarding experience?", "rating", '["1","2","3","4","5"]', 4, 1, None, '["why", "improvement"]', "neutral", 1),
-        ("What would make you come back to using the app?", "open_ended", None, 5, 0, None, '["priority", "example"]', "encouraging", 2),
-        ("Is there anything else you'd like to share?", "open_ended", None, 6, 0, None, '["reflection"]', "warm", 1),
-    ]
-    for q in questions_data:
-        cursor.execute("""
-            INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, q)
-
-    # Themes
-    themes_data = [
-        ("Checkout Failures", "Users report checkout freezing or failing", 134, -0.72, 0.85, "high", "high", 0),
-        ("Onboarding Confusion", "New users find setup steps unclear", 98, -0.55, 0.65, "high", "medium", 0),
-        ("Slow Performance", "App lag and loading delays", 76, -0.62, 0.70, "medium", "medium", 0),
-        ("UI Navigation Issues", "Users struggle finding features", 54, -0.45, 0.50, "medium", "low", 0),
-        ("Positive UX Elements", "Users praise visual design and simplicity", 43, 0.78, 0.60, "low", "low", 0),
-        ("Payment Method Gaps", "Missing preferred payment options", 38, -0.58, 0.55, "medium", "medium", 1),
-        ("Tutorial Effectiveness", "Mixed feedback on tutorial usefulness", 29, -0.15, 0.30, "low", "low", 0),
-        ("Feature Requests", "Users requesting new capabilities", 25, 0.35, 0.40, "low", "low", 0),
-    ]
-    for t in themes_data:
-        cursor.execute("""
-            INSERT INTO themes (survey_id, name, description, frequency, sentiment_avg, emotion_intensity, priority, business_risk, is_emerging)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, t)
-
-    # Insights
-    insights_data = [
-        (1, "Checkout Freeze Causes 50% Drop-off", "Half of new users abandon at checkout due to freezing", "pain_point", "Checkout", "negative", "frustration", 0.92, 0.95, 134, '["new_users", "mobile"]'),
-        (2, "Onboarding Steps Unclear for New Users", "Setup wizard skips critical instructions", "pain_point", "Onboarding", "negative", "confusion", 0.87, 0.82, 98, '["new_users"]'),
-        (3, "App Performance Degrades Under Load", "Loading times exceed 5s during peak hours", "observation", "Performance", "negative", "frustration", 0.85, 0.78, 76, '["all_users"]'),
-        (4, "Navigation Structure Not Intuitive", "Key features buried in submenus", "suggestion", "UI/UX", "negative", "confusion", 0.78, 0.65, 54, '["power_users"]'),
-        (5, "Visual Design Praised by Users", "Clean aesthetics and color scheme appreciated", "positive", "UI/UX", "positive", "satisfaction", 0.90, 0.30, 43, '["all_users"]'),
-        (6, "JazzCash/EasyPaisa Payment Not Supported", "Local payment methods missing, causing abandonment", "pain_point", "Payment", "negative", "disappointment", 0.88, 0.85, 38, '["local_users"]'),
-    ]
-    for ins in insights_data:
-        cursor.execute("""
-            INSERT INTO insights (survey_id, theme_id, title, description, insight_type, feature_area, sentiment, emotion, confidence, impact_score, frequency, user_segments)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, ins)
-
-    # Recommendations
-    recs_data = [
-        (1, "Optimize Checkout Backend", "Fix checkout freezing by optimizing payment gateway and adding timeout handling", "fix", 0.95, 0.60, 0.95, 0.95, 0.92, "short", 134, '["new_users", "mobile"]'),
-        (2, "Redesign Onboarding Wizard", "Simplify setup steps and add progress indicators", "improvement", 0.82, 0.50, 0.80, 0.85, 0.87, "medium", 98, '["new_users"]'),
-        (3, "Add Performance Monitoring", "Implement server-side caching and CDN for static assets", "improvement", 0.78, 0.70, 0.70, 0.72, 0.85, "medium", 76, '["all_users"]'),
-        (6, "Integrate Local Payment Methods", "Add JazzCash and EasyPaisa as payment options", "feature", 0.85, 0.40, 0.75, 0.88, 0.88, "short", 38, '["local_users"]'),
-        (4, "Restructure Navigation Menu", "Flatten navigation hierarchy and add quick-access toolbar", "improvement", 0.65, 0.55, 0.50, 0.58, 0.78, "medium", 54, '["power_users"]'),
-        (5, "Add Tutorial Tooltips", "Context-sensitive help tooltips during first use", "improvement", 0.50, 0.25, 0.40, 0.52, 0.72, "short", 29, '["new_users"]'),
-    ]
-    for rec in recs_data:
-        cursor.execute("""
-            INSERT INTO recommendations (survey_id, insight_id, title, description, action_type, impact_score, effort_score, urgency_score, priority_score, confidence, timeframe, supporting_count, user_segments)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, rec)
-
-    # Sentiment Records (time series)
-    import random
-    base_date = datetime(2026, 2, 1)
-    for day in range(28):
-        for feature in ["Checkout", "Onboarding", "Performance", "UI/UX", "Payment"]:
-            sentiment = random.uniform(-0.9, 0.5) if feature != "UI/UX" else random.uniform(-0.3, 0.9)
-            cursor.execute("""
-                INSERT INTO sentiment_records (survey_id, sentiment_label, sentiment_score, emotion, emotion_intensity, feature_area, recorded_at)
-                VALUES (1, ?, ?, ?, ?, ?, ?)
-            """, (
-                "negative" if sentiment < -0.2 else ("positive" if sentiment > 0.2 else "neutral"),
-                round(sentiment, 2),
-                random.choice(["frustration", "confusion", "satisfaction", "disappointment", "excitement"]),
-                round(random.uniform(0.3, 0.95), 2),
-                feature,
-                datetime(2026, 2, 1 + day).isoformat()
-            ))
-
-    # Notifications
-    notif_data = [
-        ("alert", "Critical: Checkout Frustration Spike", "Checkout-related frustration increased 25% in the last 48 hours. 134 users affected.", "critical"),
-        ("warning", "Emerging Theme: Payment Methods", "New pattern detected — users requesting local payment options (JazzCash/EasyPaisa)", "high"),
-        ("info", "Survey Milestone", "App Churn Discovery Interview has reached 247 responses", "low"),
-        ("insight", "New Insight Detected", "iOS users report 60% more payment issues than Android users", "medium"),
-        ("alert", "Drop-off Rate Increasing", "Onboarding completion rate dropped to 68% this week", "high"),
-    ]
-    for n in notif_data:
-        cursor.execute("""
-            INSERT INTO notifications (survey_id, type, title, message, severity)
-            VALUES (1, ?, ?, ?, ?)
-        """, n)
-
-    # Engagement Metrics
-    for channel in ["web", "chat", "voice"]:
-        cursor.execute("""
-            INSERT INTO engagement_metrics (survey_id, channel, total_sessions, completed_sessions, avg_completion_time, avg_response_quality, drop_off_rate)
-            VALUES (1, ?, ?, ?, ?, ?, ?)
-        """, (
-            channel,
-            {"web": 150, "chat": 72, "voice": 25}[channel],
-            {"web": 102, "chat": 58, "voice": 19}[channel],
-            {"web": 5.2, "chat": 3.8, "voice": 6.1}[channel],
-            {"web": 0.72, "chat": 0.85, "voice": 0.78}[channel],
-            {"web": 0.32, "chat": 0.19, "voice": 0.24}[channel],
-        ))
-
-    conn.commit()
-    conn.close()
-    print("Demo data seeded successfully.")
 
 
 if __name__ == "__main__":
