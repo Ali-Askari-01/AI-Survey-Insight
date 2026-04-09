@@ -8,7 +8,8 @@ Layers: Client → API Gateway → Application Services → AI Intelligence → 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import RedirectResponse
 import os
 import json
 import time
@@ -167,11 +168,47 @@ app.include_router(governance_routes.router)
 
 # Serve frontend static files
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+legacy_frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend_legacy")
 if os.path.exists(frontend_dir):
     for sub, route in [("css", "/css"), ("js", "/js"), ("assets", "/assets")]:
         sub_dir = os.path.join(frontend_dir, sub)
         if os.path.isdir(sub_dir):
             app.mount(route, StaticFiles(directory=sub_dir), name=sub)
+
+
+def _serve_frontend_file(filename: str, fallback: str | None = None):
+    """Serve a frontend file from Next.js or legacy static directories, with safe fallback."""
+    candidates = [
+        os.path.join(frontend_dir, filename),
+        os.path.join(legacy_frontend_dir, filename),
+    ]
+    if fallback:
+        candidates.extend([
+            os.path.join(frontend_dir, fallback),
+            os.path.join(legacy_frontend_dir, fallback),
+        ])
+
+    for path in candidates:
+        if os.path.exists(path):
+            return FileResponse(path)
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Frontend UI is not available from backend static files.",
+            "hint": "Run/deploy the Next.js frontend service and open that URL.",
+        },
+    )
+
+
+def _redirect_to_next(request: Request, path: str):
+    """Redirect browser requests to the Next.js frontend when URL is configured."""
+    next_url = os.environ.get("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
+    query = request.url.query
+    target = f"{next_url}{path}"
+    if query:
+        target = f"{target}?{query}"
+    return RedirectResponse(url=target, status_code=307)
 
 
 # ═══════════════════════════════════════════════════
@@ -252,60 +289,51 @@ async def startup():
 # PAGE ROUTES
 # ═══════════════════════════════════════════════════
 @app.get("/")
-def serve_landing():
-    """Serve the beautiful landing page."""
-    landing_path = os.path.join(frontend_dir, "landing.html")
-    if os.path.exists(landing_path):
-        return FileResponse(landing_path)
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+def serve_landing(request: Request):
+    """Serve landing via Next.js frontend."""
+    return _redirect_to_next(request, "/")
 
 
 @app.get("/app")
-def serve_frontend():
-    """Serve the main app (after login)."""
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+def serve_frontend(request: Request):
+    """Serve the main app via Next.js frontend."""
+    return _redirect_to_next(request, "/app")
 
 
 @app.get("/survey-form.html")
 def serve_survey_form_page():
     """Serve respondent web-form survey page."""
-    return FileResponse(os.path.join(frontend_dir, "survey-form.html"))
+    return _serve_frontend_file("survey-form.html", fallback="index.html")
 
 
 @app.get("/survey-chat.html")
 def serve_survey_chat_page():
     """Serve respondent chat survey page."""
-    return FileResponse(os.path.join(frontend_dir, "survey-chat.html"))
+    return _serve_frontend_file("survey-chat.html", fallback="index.html")
 
 
 @app.get("/survey-audio.html")
 def serve_survey_audio_page():
     """Serve respondent voice survey page."""
-    return FileResponse(os.path.join(frontend_dir, "survey-audio.html"))
+    return _serve_frontend_file("survey-audio.html", fallback="index.html")
 
 
 @app.get("/interview.html")
 def serve_interview_page():
     """Serve respondent interview landing page."""
-    return FileResponse(os.path.join(frontend_dir, "interview.html"))
+    return _serve_frontend_file("interview.html", fallback="index.html")
 
 
 @app.get("/interview/{share_code}")
 def serve_interview_landing(share_code: str):
     """Serve the respondent interview landing page (choose channel)."""
-    path = os.path.join(frontend_dir, "interview.html")
-    if os.path.exists(path):
-        return FileResponse(path)
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+    return _serve_frontend_file("interview.html", fallback="index.html")
 
 
 @app.get("/interview/{share_code}/{channel}")
 def serve_interview_channel(share_code: str, channel: str):
     """Serve the respondent interview page for a specific channel."""
-    path = os.path.join(frontend_dir, "interview.html")
-    if os.path.exists(path):
-        return FileResponse(path)
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+    return _serve_frontend_file("interview.html", fallback="index.html")
 
 
 # ═══════════════════════════════════════════════════

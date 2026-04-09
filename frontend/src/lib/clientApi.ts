@@ -5,13 +5,21 @@ import { API_BASE } from '@/lib/api'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 class ClientAPI {
-  private token: string | null = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+  private token: string | null =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('auth_token') || localStorage.getItem('token')
+      : null
 
   setToken(token: string | null) {
     this.token = token
     if (typeof window === 'undefined') return
-    if (token) localStorage.setItem('auth_token', token)
-    else localStorage.removeItem('auth_token')
+    if (token) {
+      localStorage.setItem('auth_token', token)
+      localStorage.setItem('token', token)
+    } else {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('token')
+    }
   }
 
   getToken() {
@@ -65,7 +73,9 @@ class ClientAPI {
     list: () => this.get('/api/surveys/'),
     get: (id: number | string) => this.get(`/api/surveys/${id}`),
     create: (data: unknown) => this.post('/api/surveys/', data),
+    update: (id: number | string, data: unknown) => this.put(`/api/surveys/${id}`, data),
     getFlow: (id: number | string) => this.get(`/api/surveys/${id}/flow`),
+    getQuestions: (id: number | string) => this.get(`/api/surveys/${id}/questions`),
     createQuestion: (data: unknown) => this.post('/api/surveys/questions', data),
     updateQuestion: (id: number | string, data: unknown) => this.put(`/api/surveys/questions/${id}`, data),
     deleteQuestion: (id: number | string) => this.delete(`/api/surveys/questions/${id}`),
@@ -88,6 +98,13 @@ class ClientAPI {
     listGoals: () => this.get('/api/surveys/goals'),
     getGoal: (id: number | string) => this.get(`/api/surveys/goals/${id}`),
     createGoal: (data: unknown) => this.post('/api/surveys/goals', data),
+    getResponses: (id: number | string) => this.get(`/api/surveys/${id}/responses`),
+    submitResponses: (id: number | string, data: unknown) => this.post(`/api/surveys/${id}/responses`, data),
+    generateInsights: (id: number | string) => this.get(`/api/surveys/${id}/insights`),
+    getAnalytics: (id: number | string) => this.get(`/api/surveys/${id}/analytics`),
+    startChatSession: (id: number | string) => this.post(`/api/surveys/${id}/chat/sessions`, {}),
+    getChatMessage: (sessionId: string) => this.get(`/api/surveys/chat/sessions/${sessionId}/message`),
+    sendChatMessage: (sessionId: string, data: unknown) => this.post(`/api/surveys/chat/sessions/${sessionId}/message`, data),
   }
 
   interviews = {

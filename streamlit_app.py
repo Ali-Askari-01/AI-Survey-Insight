@@ -6,6 +6,12 @@ import streamlit as st
 
 
 # Load Streamlit secrets into environment before backend modules import config.
+_streamlit_secrets: Dict[str, Any] = {}
+try:
+    _streamlit_secrets = dict(st.secrets)
+except Exception:
+    _streamlit_secrets = {}
+
 for _key in [
     "GEMINI_API_KEY",
     "ASSEMBLYAI_API_KEY",
@@ -15,8 +21,8 @@ for _key in [
     "GOOGLE_CLIENT_SECRET",
     "GOOGLE_REDIRECT_URI",
 ]:
-    if _key in st.secrets and not os.getenv(_key):
-        os.environ[_key] = str(st.secrets[_key])
+    if _key in _streamlit_secrets and not os.getenv(_key):
+        os.environ[_key] = str(_streamlit_secrets[_key])
 
 from backend.database import DB_PATH, get_db, init_db
 from backend.services.ai_service import AIService

@@ -24,6 +24,32 @@ import io
 router = APIRouter(prefix="/api/publish", tags=["survey-publish"])
 
 
+def _user_id(current_user: dict) -> int:
+    return int(current_user["sub"])
+
+
+def _assert_survey_owner(conn, survey_id: int, current_user: dict):
+    survey = conn.execute("SELECT id, owner_user_id FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
+    uid = _user_id(current_user)
+    owner = survey["owner_user_id"]
+    if owner is None:
+        pub = conn.execute(
+            "SELECT 1 FROM survey_publications WHERE survey_id = ? AND user_id = ? LIMIT 1",
+            (survey_id, uid)
+        ).fetchone()
+        if pub:
+            conn.execute("UPDATE surveys SET owner_user_id = ? WHERE id = ?", (uid, survey_id))
+            conn.commit()
+            return
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if owner != uid:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
 # ═══════════════════════════════════════════════════
 # PUBLISH A SURVEY — Creates share links
 # ═══════════════════════════════════════════════════
@@ -32,11 +58,14 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
     """Publish a survey and generate shareable links for all channels + per-stakeholder."""
     conn = get_db()
 
-    # Verify survey exists
+    user_id = _user_id(current_user)
+
+    # Verify survey exists + ownership
     survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (req.survey_id,)).fetchone()
     if not survey:
         conn.close()
         raise HTTPException(status_code=404, detail="Survey not found")
+    _assert_survey_owner(conn, req.survey_id, current_user)
 
     survey_dict = dict(survey)
     title = req.title or survey_dict.get("title", "Untitled Survey")
@@ -44,14 +73,14 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
 
     # Check if already published
     existing = conn.execute(
-        "SELECT * FROM survey_publications WHERE survey_id = ? AND status != 'closed'",
-        (req.survey_id,)
+        "SELECT * FROM survey_publications WHERE survey_id = ? AND user_id = ? AND status != 'closed'",
+        (req.survey_id, user_id)
     ).fetchone()
     if existing:
         # Return all existing publications for this survey
         all_pubs = conn.execute(
-            "SELECT * FROM survey_publications WHERE survey_id = ? AND status != 'closed' ORDER BY audience_label",
-            (req.survey_id,)
+            "SELECT * FROM survey_publications WHERE survey_id = ? AND user_id = ? AND status != 'closed' ORDER BY audience_label",
+            (req.survey_id, user_id)
         ).fetchall()
         general_pub = None
         stakeholder_pubs = []
@@ -72,9 +101,6 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
             "links": _build_links(dict(existing)["share_code"]),
             "stakeholder_publications": stakeholder_pubs,
         }
-
-    # Get user_id from auth
-    user_id = current_user["sub"]
 
     # Discover distinct audience tags from questions
     audience_tags = conn.execute(
@@ -131,8 +157,8 @@ def publish_survey(req: PublishSurveyRequest, current_user: dict = Depends(get_c
         })
 
     # Update survey status to active
-    conn.execute("UPDATE surveys SET status = 'active', updated_at = ? WHERE id = ?",
-                 (datetime.now().isoformat(), req.survey_id))
+    conn.execute("UPDATE surveys SET status = 'active', updated_at = ?, owner_user_id = ? WHERE id = ?",
+                 (datetime.now().isoformat(), user_id, req.survey_id))
     conn.commit()
     pub_id = cursor.lastrowid
     conn.close()
@@ -155,6 +181,9 @@ def update_publication_status(share_code: str, data: dict, current_user: dict = 
     if not pub:
         conn.close()
         raise HTTPException(status_code=404, detail="Publication not found")
+    if int(dict(pub)["user_id"]) != _user_id(current_user):
+        conn.close()
+        raise HTTPException(status_code=403, detail="Access denied")
 
     new_status = data.get("status", "active")
     if new_status not in ("draft", "active", "paused", "closed"):
@@ -178,16 +207,30 @@ def list_my_surveys(current_user: dict = Depends(get_current_user)):
     """List all surveys with their publication status, respondent counts, and links."""
     conn = get_db()
     try:
+        user_id = int(current_user["sub"])
         surveys = conn.execute("""
             SELECT s.*, rg.title as goal_title, rg.research_type
             FROM surveys s
             LEFT JOIN research_goals rg ON s.research_goal_id = rg.id
+            WHERE (s.owner_user_id = ?)
+               OR (
+                s.owner_user_id IS NULL
+                AND EXISTS (
+                SELECT 1 FROM survey_publications sp
+                WHERE sp.survey_id = s.id AND sp.user_id = ?
+                )
+            )
             ORDER BY s.created_at DESC
-        """).fetchall()
+        """, (user_id, user_id)).fetchall()
 
         result = []
         for s in surveys:
             sd = dict(s)
+            # Guard against legacy demo-seeded records leaking into real user dashboards.
+            title = (sd.get("title") or "").strip().lower()
+            description = (sd.get("description") or "").strip().lower()
+            if title == "app churn discovery interview" or "ai-guided interview to discover why new users disengage" in description:
+                continue
             survey_id = sd["id"]
 
             # Get publication info (general = primary)
@@ -427,6 +470,7 @@ def get_survey_analytics(survey_id: int, current_user: dict = Depends(get_curren
     """Get comprehensive survey analytics for group-level analysis."""
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         # Basic stats
         total_respondents = conn.execute(
             "SELECT COUNT(DISTINCT respondent_id) as c FROM survey_respondents WHERE survey_id = ?",
@@ -567,6 +611,7 @@ def get_survey_analysis(survey_id: int, current_user: dict = Depends(get_current
     """Generate comprehensive AI analysis across all respondents for a survey."""
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         # Get survey info
         survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
         if not survey:
@@ -664,6 +709,7 @@ def get_survey_analysis(survey_id: int, current_user: dict = Depends(get_current
 def get_survey_respondents(survey_id: int, current_user: dict = Depends(get_current_user)):
     """Get all respondents for a survey with their session details."""
     conn = get_db()
+    _assert_survey_owner(conn, survey_id, current_user)
 
     respondents = conn.execute("""
         SELECT resp.email, resp.name, sr.channel, sr.status, sr.started_at, sr.completed_at, sr.session_id,
@@ -811,9 +857,10 @@ def save_transcript(session_id: str):
         conn.close()
 
 @router.get("/transcripts/{survey_id}/all")
-def get_all_transcripts(survey_id: int):
+def get_all_transcripts(survey_id: int, current_user: dict = Depends(get_current_user)):
     """Get all transcripts for a survey (for group analysis)."""
     conn = get_db()
+    _assert_survey_owner(conn, survey_id, current_user)
     transcripts = conn.execute("""
         SELECT ft.*, resp.email, resp.name as respondent_name
         FROM full_transcripts ft
@@ -826,9 +873,15 @@ def get_all_transcripts(survey_id: int):
 
 
 @router.get("/transcripts/session/{session_id}")
-def get_session_transcript(session_id: str):
+def get_session_transcript(session_id: str, current_user: dict = Depends(get_current_user)):
     """Get single session transcript."""
     conn = get_db()
+    survey_row = conn.execute(
+        "SELECT s.id as survey_id FROM full_transcripts ft JOIN surveys s ON ft.survey_id = s.id WHERE ft.session_id = ?",
+        (session_id,)
+    ).fetchone()
+    if survey_row:
+        _assert_survey_owner(conn, dict(survey_row)["survey_id"], current_user)
     transcript = conn.execute("SELECT * FROM full_transcripts WHERE session_id = ?", (session_id,)).fetchone()
     if not transcript:
         conn.close()
@@ -845,6 +898,7 @@ def export_respondents_csv(survey_id: int, current_user: dict = Depends(get_curr
     """Export all respondent data as a downloadable CSV file."""
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         respondents = conn.execute("""
             SELECT resp.email, resp.name, sr.channel, sr.status, sr.started_at, sr.completed_at, sr.session_id,
                    i.completion_percentage, i.engagement_score
@@ -881,6 +935,7 @@ def export_analysis_csv(survey_id: int, current_user: dict = Depends(get_current
     """Export analytics data as a downloadable CSV file."""
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         # Get responses with session and question info
         rows = conn.execute("""
             SELECT resp_tbl.email, r.response_text, r.response_type, r.sentiment_score,
@@ -920,6 +975,7 @@ def export_report_html(survey_id: int, current_user: dict = Depends(get_current_
     """Export a printable/PDF-ready HTML report of the AI analysis."""
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
         if not survey:
             raise HTTPException(status_code=404, detail="Survey not found")

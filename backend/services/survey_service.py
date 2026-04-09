@@ -26,16 +26,16 @@ class SurveyService:
     def create_goal(title: str, description: str = None, research_type: str = "discovery",
                     problem_space: str = None, target_outcome: str = None,
                     target_audience: str = None, success_criteria: str = None,
-                    estimated_duration: int = 5) -> dict:
+                    estimated_duration: int = 5, owner_user_id: int | None = None) -> dict:
         conn = get_db()
         try:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO research_goals (title, description, research_type, problem_space,
-                    target_outcome, target_audience, success_criteria, estimated_duration)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    target_outcome, target_audience, success_criteria, estimated_duration, owner_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (title, description, research_type, problem_space,
-                  target_outcome, target_audience, success_criteria, estimated_duration))
+                  target_outcome, target_audience, success_criteria, estimated_duration, owner_user_id))
             conn.commit()
             goal_id = cursor.lastrowid
             return {"id": goal_id, "message": "Research goal created"}
@@ -43,16 +43,28 @@ class SurveyService:
             conn.close()
 
     @staticmethod
-    def get_goal(goal_id: int) -> Optional[dict]:
+    def get_goal(goal_id: int, owner_user_id: int | None = None) -> Optional[dict]:
         conn = get_db()
-        goal = conn.execute("SELECT * FROM research_goals WHERE id = ?", (goal_id,)).fetchone()
+        if owner_user_id is None:
+            goal = conn.execute("SELECT * FROM research_goals WHERE id = ?", (goal_id,)).fetchone()
+        else:
+            goal = conn.execute(
+                "SELECT * FROM research_goals WHERE id = ? AND owner_user_id = ?",
+                (goal_id, owner_user_id)
+            ).fetchone()
         conn.close()
         return dict(goal) if goal else None
 
     @staticmethod
-    def list_goals() -> list:
+    def list_goals(owner_user_id: int | None = None) -> list:
         conn = get_db()
-        goals = conn.execute("SELECT * FROM research_goals ORDER BY created_at DESC").fetchall()
+        if owner_user_id is None:
+            goals = conn.execute("SELECT * FROM research_goals ORDER BY created_at DESC").fetchall()
+        else:
+            goals = conn.execute(
+                "SELECT * FROM research_goals WHERE owner_user_id = ? ORDER BY created_at DESC",
+                (owner_user_id,)
+            ).fetchall()
         conn.close()
         return [dict(g) for g in goals]
 
@@ -73,14 +85,15 @@ class SurveyService:
     def create_survey(research_goal_id: int = None, title: str = "",
                       description: str = None, channel_type: str = "web",
                       estimated_duration: int = 5,
-                      interview_style: str = "balanced") -> dict:
+                      interview_style: str = "balanced",
+                      owner_user_id: int | None = None) -> dict:
         conn = get_db()
         try:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration, interview_style)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (research_goal_id, title, description, channel_type, estimated_duration, interview_style))
+                INSERT INTO surveys (research_goal_id, title, description, channel_type, estimated_duration, interview_style, owner_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (research_goal_id, title, description, channel_type, estimated_duration, interview_style, owner_user_id))
             conn.commit()
             survey_id = cursor.lastrowid
         finally:
@@ -97,8 +110,18 @@ class SurveyService:
 
     @staticmethod
     def get_survey(survey_id: int) -> Optional[dict]:
+        return SurveyService.get_survey_for_owner(survey_id)
+
+    @staticmethod
+    def get_survey_for_owner(survey_id: int, owner_user_id: int | None = None) -> Optional[dict]:
         conn = get_db()
-        survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+        if owner_user_id is None:
+            survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+        else:
+            survey = conn.execute(
+                "SELECT * FROM surveys WHERE id = ? AND owner_user_id = ?",
+                (survey_id, owner_user_id)
+            ).fetchone()
         if not survey:
             conn.close()
             return None
@@ -111,8 +134,18 @@ class SurveyService:
 
     @staticmethod
     def list_surveys() -> list:
+        return SurveyService.list_surveys_for_owner()
+
+    @staticmethod
+    def list_surveys_for_owner(owner_user_id: int | None = None) -> list:
         conn = get_db()
-        surveys = conn.execute("SELECT * FROM surveys ORDER BY created_at DESC").fetchall()
+        if owner_user_id is None:
+            surveys = conn.execute("SELECT * FROM surveys ORDER BY created_at DESC").fetchall()
+        else:
+            surveys = conn.execute(
+                "SELECT * FROM surveys WHERE owner_user_id = ? ORDER BY created_at DESC",
+                (owner_user_id,)
+            ).fetchall()
         conn.close()
         return [dict(s) for s in surveys]
 

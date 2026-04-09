@@ -1,13 +1,16 @@
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Card } from '@/components/ui/Card'
+import AnalyticsDashboard from '@/components/features/AnalyticsDashboard'
 
 export default function ReportsPage() {
   return (
     <AppLayout>
-      <Card className="p-6">
-        <h2 className="font-display text-2xl font-bold">Reports</h2>
-        <p className="text-text-muted mt-2">Generate executive summaries and exportable recommendations.</p>
-      </Card>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
+          <p className="text-gray-400 mt-2">Monitor response metrics, trends, and generate executive summaries</p>
+        </div>
+        <AnalyticsDashboard />
+      </div>
     </AppLayout>
   )
 }

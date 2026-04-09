@@ -1,16 +1,34 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { apiFetch } from '@/lib/api'
+import { clientApi } from '@/lib/clientApi'
 
 export default function AuthPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const googleToken = searchParams.get('google_token')
+    const authError = searchParams.get('auth_error')
+
+    if (authError) {
+      setError(`Google sign-in failed: ${authError}`)
+      return
+    }
+
+    if (googleToken && typeof window !== 'undefined') {
+      localStorage.setItem('token', googleToken)
+      clientApi.setToken(googleToken)
+      router.replace('/app/dashboard')
+    }
+  }, [searchParams, router])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,6 +41,7 @@ export default function AuthPage() {
 
       if (typeof window !== 'undefined' && result?.access_token) {
         localStorage.setItem('token', result.access_token)
+        clientApi.setToken(result.access_token)
       }
 
       router.push('/app/dashboard')

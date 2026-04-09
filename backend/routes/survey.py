@@ -17,6 +17,47 @@ import uuid
 router = APIRouter(prefix="/api/surveys", tags=["surveys"])
 
 
+def _user_id(current_user: dict) -> int:
+    return int(current_user["sub"])
+
+
+def _assert_goal_owner(conn, goal_id: int, current_user: dict):
+    goal = conn.execute("SELECT id, owner_user_id FROM research_goals WHERE id = ?", (goal_id,)).fetchone()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    uid = _user_id(current_user)
+    owner = goal["owner_user_id"]
+    if owner is None:
+        conn.execute("UPDATE research_goals SET owner_user_id = ? WHERE id = ?", (uid, goal_id))
+        conn.commit()
+        return
+    if owner != uid:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _assert_survey_owner(conn, survey_id: int, current_user: dict):
+    survey = conn.execute("SELECT id, owner_user_id FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
+    uid = _user_id(current_user)
+    owner = survey["owner_user_id"]
+    if owner is None:
+        pub = conn.execute(
+            "SELECT 1 FROM survey_publications WHERE survey_id = ? AND user_id = ? LIMIT 1",
+            (survey_id, uid)
+        ).fetchone()
+        if not pub:
+            raise HTTPException(status_code=403, detail="Access denied")
+        conn.execute("UPDATE surveys SET owner_user_id = ? WHERE id = ?", (uid, survey_id))
+        conn.commit()
+        return
+
+    if owner != uid:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
 # ═══════════════════════════════════════════════════
 # SURVEY TEMPLATES — Pre-built starting points
 # ═══════════════════════════════════════════════════
@@ -103,7 +144,8 @@ def create_research_goal(goal: ResearchGoalCreate, current_user: dict = Depends(
         title=goal.title, description=goal.description, research_type=goal.research_type,
         problem_space=goal.problem_space, target_outcome=goal.target_outcome,
         target_audience=goal.target_audience, success_criteria=goal.success_criteria,
-        estimated_duration=goal.estimated_duration
+        estimated_duration=goal.estimated_duration,
+        owner_user_id=_user_id(current_user)
     )
 
 
@@ -115,12 +157,12 @@ def ai_parse_goal(req: AIGoalRequest, current_user: dict = Depends(get_current_u
 
 @router.get("/goals")
 def list_research_goals(current_user: dict = Depends(get_current_user)):
-    return SurveyService.list_goals()
+    return SurveyService.list_goals(owner_user_id=_user_id(current_user))
 
 
 @router.get("/goals/{goal_id}")
-def get_research_goal(goal_id: int):
-    goal = SurveyService.get_goal(goal_id)
+def get_research_goal(goal_id: int, current_user: dict = Depends(get_current_user)):
+    goal = SurveyService.get_goal(goal_id, owner_user_id=_user_id(current_user))
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     return goal
@@ -129,22 +171,29 @@ def get_research_goal(goal_id: int):
 # ── Surveys ──
 @router.post("/")
 def create_survey(survey: SurveyCreate, current_user: dict = Depends(get_current_user)):
+    if survey.research_goal_id is not None:
+        conn = get_db()
+        try:
+            _assert_goal_owner(conn, survey.research_goal_id, current_user)
+        finally:
+            conn.close()
     return SurveyService.create_survey(
         research_goal_id=survey.research_goal_id, title=survey.title,
         description=survey.description, channel_type=survey.channel_type,
         estimated_duration=survey.estimated_duration,
-        interview_style=survey.interview_style
+        interview_style=survey.interview_style,
+        owner_user_id=_user_id(current_user)
     )
 
 
 @router.get("/")
 def list_surveys(current_user: dict = Depends(get_current_user)):
-    return SurveyService.list_surveys()
+    return SurveyService.list_surveys_for_owner(owner_user_id=_user_id(current_user))
 
 
 @router.get("/{survey_id}")
-def get_survey(survey_id: int):
-    survey = SurveyService.get_survey(survey_id)
+def get_survey(survey_id: int, current_user: dict = Depends(get_current_user)):
+    survey = SurveyService.get_survey_for_owner(survey_id, owner_user_id=_user_id(current_user))
     if not survey:
         raise HTTPException(status_code=404, detail="Survey not found")
     return survey
@@ -155,6 +204,7 @@ def get_survey(survey_id: int):
 def create_question(question: QuestionCreate, current_user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
+        _assert_survey_owner(conn, question.survey_id, current_user)
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO questions (survey_id, question_text, question_type, options, order_index, is_required, conditional_logic, follow_up_seeds, tone, depth_level, audience_tag)
@@ -176,6 +226,7 @@ def update_question(question_id: int, update: QuestionUpdate, current_user: dict
         q = conn.execute("SELECT * FROM questions WHERE id = ?", (question_id,)).fetchone()
         if not q:
             raise HTTPException(status_code=404, detail="Question not found")
+        _assert_survey_owner(conn, q["survey_id"], current_user)
 
         updates = {}
         if update.question_text is not None:
@@ -207,6 +258,10 @@ def update_question(question_id: int, update: QuestionUpdate, current_user: dict
 def delete_question(question_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
+        q = conn.execute("SELECT survey_id FROM questions WHERE id = ?", (question_id,)).fetchone()
+        if not q:
+            raise HTTPException(status_code=404, detail="Question not found")
+        _assert_survey_owner(conn, q["survey_id"], current_user)
         conn.execute("DELETE FROM questions WHERE id = ?", (question_id,))
         conn.commit()
         return {"message": "Question deleted"}
@@ -220,6 +275,10 @@ def reorder_questions(data: dict, current_user: dict = Depends(get_current_user)
     conn = get_db()
     try:
         for item in data.get("orders", []):
+            q = conn.execute("SELECT survey_id FROM questions WHERE id = ?", (item["id"],)).fetchone()
+            if not q:
+                raise HTTPException(status_code=404, detail=f"Question not found: {item['id']}")
+            _assert_survey_owner(conn, q["survey_id"], current_user)
             conn.execute("UPDATE questions SET order_index = ? WHERE id = ?", (item["order_index"], item["id"]))
         conn.commit()
         return {"message": "Questions reordered"}
@@ -230,6 +289,9 @@ def reorder_questions(data: dict, current_user: dict = Depends(get_current_user)
 @router.post("/questions/ai-generate")
 def ai_generate_questions(req: AIQuestionGenerateRequest, current_user: dict = Depends(get_current_user)):
     """AI generates contextual questions for a research goal."""
+    goal = SurveyService.get_goal(req.research_goal_id, owner_user_id=_user_id(current_user))
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
     result = SurveyService.ai_generate_questions(req.research_goal_id, req.count)
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
@@ -275,17 +337,21 @@ def ai_generate_audience_targeted(data: dict, current_user: dict = Depends(get_c
 
 # ── Conversation Flow ──
 @router.get("/{survey_id}/flow")
-def get_conversation_flow(survey_id: int):
+def get_conversation_flow(survey_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_db()
-    nodes = conn.execute("SELECT * FROM conversation_flow WHERE survey_id = ? ORDER BY depth_level", (survey_id,)).fetchall()
-    conn.close()
-    return [dict(n) for n in nodes]
+    try:
+        _assert_survey_owner(conn, survey_id, current_user)
+        nodes = conn.execute("SELECT * FROM conversation_flow WHERE survey_id = ? ORDER BY depth_level", (survey_id,)).fetchall()
+        return [dict(n) for n in nodes]
+    finally:
+        conn.close()
 
 
 @router.post("/{survey_id}/flow")
-def create_flow_node(survey_id: int, data: dict):
+def create_flow_node(survey_id: int, data: dict, current_user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
+        _assert_survey_owner(conn, survey_id, current_user)
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO conversation_flow (survey_id, node_id, topic, parent_node_id, question_id, condition_type, condition_value, depth_level, priority_score)
@@ -316,10 +382,9 @@ def delete_survey(survey_id: int, current_user: dict = Depends(get_current_user)
     """Permanently delete a survey and ALL related data (questions, sessions, responses, etc.)."""
     conn = get_db()
     try:
-        # Verify survey exists
+        # Verify survey ownership first.
+        _assert_survey_owner(conn, survey_id, current_user)
         survey = conn.execute("SELECT id, title FROM surveys WHERE id = ?", (survey_id,)).fetchone()
-        if not survey:
-            raise HTTPException(status_code=404, detail="Survey not found")
 
         # Enable foreign keys for cascade
         conn.execute("PRAGMA foreign_keys = ON")

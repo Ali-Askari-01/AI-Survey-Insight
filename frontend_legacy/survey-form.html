@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Survey Form — InsightAI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --gold: #F5A623; --gold-hover: #E09000; --gold-light: rgba(245,166,35,0.08);
+            --cream: #FAF7F2; --cream-dark: #F0EBE3; --card-bg: #FFFFFF;
+            --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+            --text-dark: #1A1A2E; --text-body: #374151; --text-muted: #6B7280;
+            --border: #E5E0D8; --radius-lg: 12px; --radius-xl: 16px;
+            --shadow-lg: 0 10px 30px rgba(26,26,46,0.1);
+        }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif; background: var(--cream);
+            min-height: 100vh; padding: 20px; color: var(--text-dark);
+        }
+        
+        .container { max-width: 800px; margin: 0 auto; }
+        .card {
+            background: var(--card-bg); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+            overflow: hidden; border: 1px solid var(--border); margin-bottom: 20px;
+        }
+        
+        /* Header */
+        .card-header {
+            background: linear-gradient(135deg, var(--gold) 0%, #E09000 100%);
+            padding: 24px 32px; color: var(--text-dark); text-align: center;
+        }
+        .card-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+        .card-header p { opacity: 0.8; }
+        
+        /* Progress */
+        .progress-container { padding: 16px 32px 0; background: var(--cream); }
+        .progress-bar { width: 100%; height: 8px; background: var(--cream-dark); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--gold); transition: width 0.5s ease; }
+        .progress-text { 
+            display: flex; justify-content: space-between; margin-top: 8px; 
+            font-size: 0.85rem; color: var(--text-muted); font-weight: 500;
+        }
+        
+        /* Question */
+        .question-container { padding: 40px 32px; }
+        .question-text { 
+            font-size: 1.3rem; font-weight: 600; margin-bottom: 24px; 
+            line-height: 1.4; color: var(--text-dark);
+        }
+        
+        /* Voice Input Controls */
+        .voice-container {
+            background: var(--gold-light); border-radius: var(--radius-lg);
+            padding: 16px; margin-bottom: 20px; text-align: center;
+        }
+        .voice-btn {
+            background: var(--gold); color: var(--text-dark); border: none;
+            border-radius: 50%; width: 60px; height: 60px; font-size: 1.5rem;
+            cursor: pointer; transition: all 0.3s ease; margin: 0 auto 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .voice-btn:hover { background: var(--gold-hover); transform: scale(1.05); }
+        .voice-btn.recording { 
+            background: var(--danger); animation: pulse 2s infinite;
+            box-shadow: 0 0 0 4px rgba(239,68,68,0.3);
+        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .voice-status { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
+        
+        /* Form Controls */
+        .form-group { margin-bottom: 24px; }
+        .form-control {
+            width: 100%; padding: 16px; border: 2px solid var(--border);
+            border-radius: var(--radius-lg); font-size: 1rem; font-family: inherit;
+            transition: border-color 0.2s; background: var(--card-bg);
+            min-height: 120px; resize: vertical;
+        }
+        .form-control:focus { outline: none; border-color: var(--gold); }
+        
+        /* Navigation */
+        .nav-buttons {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 24px 32px; background: var(--cream); border-top: 1px solid var(--border);
+        }
+        .btn {
+            padding: 12px 24px; border: none; border-radius: var(--radius-lg);
+            font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary { background: var(--gold); color: var(--text-dark); }
+        .btn-primary:hover { background: var(--gold-hover); }
+        .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--text-muted); }
+        .btn-secondary:hover { color: var(--gold); }
+        
+        /* Status Messages */
+        .status-message {
+            padding: 12px 16px; border-radius: var(--radius-lg); margin-bottom: 16px;
+            font-size: 0.9rem; font-weight: 500; display: none;
+        }
+        .status-success { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+        .status-error { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+        .status-info { background: rgba(59,130,246,0.1); color: var(--info); border: 1px solid rgba(59,130,246,0.2); }
+        
+        /* Completion */
+        .completion-card { text-align: center; padding: 60px 40px; }
+        .completion-icon { 
+            font-size: 4rem; color: var(--success); margin-bottom: 24px;
+            width: 100px; height: 100px; border-radius: 50%;
+            border: 3px solid var(--success); display: flex;
+            align-items: center; justify-content: center; margin: 0 auto 24px;
+        }
+        .completion-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 16px; }
+        .completion-text { font-size: 1.1rem; color: var(--text-muted); line-height: 1.6; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .question-container { padding: 24px 20px; }
+            .nav-buttons { padding: 16px 20px; }
+            .card-header { padding: 20px; }
+            .progress-container { padding: 12px 20px 0; }
+        }
+    </style>
+    <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Survey Card -->
+        <div class="card" id="survey-card">
+            <div class="card-header">
+                <h1><i class="fas fa-clipboard-list"></i> Survey</h1>
+                <p>Share your thoughts with us</p>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-text">Question 1</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <div class="status-message" id="status-message"></div>
+                
+                <div class="question-text" id="question-text">
+                    Loading your first question...
+                </div>
+                
+                <!-- Voice Input Section -->
+                <div class="voice-container">
+                    <button class="voice-btn" id="voice-btn" onclick="toggleRecording()">
+                        <i class="fas fa-microphone" id="voice-icon"></i>
+                    </button>
+                    <div class="voice-status" id="voice-status">Click to speak your answer</div>
+                </div>
+                
+                <div class="form-group">
+                    <textarea class="form-control" id="answer-input" 
+                              placeholder="Type your answer here, or use voice input above..."
+                              rows="6"></textarea>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" id="back-btn" onclick="previousQuestion()" style="display:none;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <div></div>
+                <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Completion Card -->
+        <div class="card" id="completion-card" style="display: none;">
+            <div class="completion-card">
+                <div class="completion-icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h2 class="completion-title">Thank You!</h2>
+                <p class="completion-text">
+                    Your responses have been submitted successfully. Thank you for taking the time 
+                    to share your valuable insights with us.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestion = 0;
+        let questions = [];
+        let responses = [];
+        let sessionId = null;
+        let surveyId = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let surveyMeta = null;
+        let resolvedSurveyId = null;
+
+        // Initialize survey
+        async function initSurvey() {
+            const urlParams = new URLSearchParams(window.location.search);
+            surveyId = urlParams.get('survey_id') || urlParams.get('share_code');
+            if (surveyId === 'demo') surveyId = '1';
+            
+            if (!surveyId) {
+                showStatus('error', 'Invalid survey link. Please check the URL.');
+                return;
+            }
+            
+            try {
+                await loadQuestions();
+
+                // Create session
+                const sessionResponse = await fetch('/api/interviews/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        survey_id: resolvedSurveyId,
+                        channel: 'webform',
+                        device_type: detectDevice(),
+                        language: 'en'
+                    })
+                });
+                
+                const sessionData = await sessionResponse.json();
+                sessionId = sessionData.session_id;
+
+                showCurrentQuestion();
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                showStatus('error', 'Failed to load survey. Please refresh and try again.');
+            }
+        }
+        
+        async function loadQuestions() {
+            try {
+                const publishedResponse = await fetch(`/api/publish/s/${encodeURIComponent(surveyId)}`);
+                if (publishedResponse.ok) {
+                    const publishedData = await publishedResponse.json();
+                    surveyMeta = publishedData;
+                    resolvedSurveyId = publishedData.survey_id;
+                    questions = publishedData.questions || [];
+                } else {
+                    const response = await fetch(`/api/surveys/${encodeURIComponent(surveyId)}`);
+                    if (!response.ok) {
+                        throw new Error('Survey not found');
+                    }
+                    const surveyData = await response.json();
+                    surveyMeta = surveyData;
+                    resolvedSurveyId = surveyData.id || parseInt(surveyId, 10) || 1;
+                    questions = surveyData.questions || [];
+                }
+
+                // Reflect respondent-facing survey context in the header when available
+                if (surveyMeta && surveyMeta.title) {
+                    document.querySelector('.card-header h1').innerHTML = `<i class="fas fa-clipboard-list"></i> ${surveyMeta.title}`;
+                }
+                if (surveyMeta && surveyMeta.description) {
+                    document.querySelector('.card-header p').textContent = surveyMeta.description;
+                }
+            } catch (error) {
+                console.error('Failed to load questions:', error);
+                resolvedSurveyId = parseInt(surveyId, 10) || 1;
+                questions = [
+                    { id: 1, question_text: "What is your overall experience with our product?" },
+                    { id: 2, question_text: "What features do you find most valuable?" },
+                    { id: 3, question_text: "How can we improve your experience?" }
+                ];
+            }
+        }
+        
+        function showCurrentQuestion() {
+            if (!questions || questions.length === 0) {
+                showStatus('error', 'This survey does not have questions yet. Please try again later.');
+                document.getElementById('next-btn').disabled = true;
+                return;
+            }
+
+            if (currentQuestion >= questions.length) {
+                completeSurvey();
+                return;
+            }
+            
+            const question = questions[currentQuestion];
+            document.getElementById('question-text').textContent = question.question_text;
+            document.getElementById('answer-input').value = responses[currentQuestion] || '';
+            
+            // Update progress
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+            document.getElementById('progress-fill').style.width = progress + '%';
+            document.getElementById('progress-text').textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
+            document.getElementById('progress-percent').textContent = Math.round(progress) + '%';
+            
+            // Update navigation
+            document.getElementById('back-btn').style.display = currentQuestion > 0 ? 'block' : 'none';
+            document.getElementById('next-btn').innerHTML = currentQuestion === questions.length - 1
+                ? 'Submit <i class="fas fa-paper-plane"></i>'
+                : 'Next <i class="fas fa-arrow-right"></i>';
+        }
+        
+        async function nextQuestion() {
+            const answer = document.getElementById('answer-input').value.trim();
+            const nextBtn = document.getElementById('next-btn');
+            
+            if (!answer) {
+                showStatus('error', 'Please provide an answer before continuing.');
+                return;
+            }
+            
+            // Save current response
+            responses[currentQuestion] = answer;
+            
+            // Submit response to backend using FAST endpoint
+            try {
+                nextBtn.disabled = true;
+                nextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                showStatus('info', 'Saving your response...');
+                
+                const question = questions[currentQuestion];
+                await fetch('/api/fast-interview/respond-fast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        question_id: question.id,
+                        response_text: answer,
+                        response_type: 'text'
+                    })
+                });
+                
+                currentQuestion++;
+                showCurrentQuestion();
+                hideStatus();
+                
+            } catch (error) {
+                console.error('Submit error:', error);
+                showStatus('error', 'Failed to save response. Please try again.');
+            } finally {
+                nextBtn.disabled = false;
+                showCurrentQuestion();
+            }
+        }
+        
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                showCurrentQuestion();
+            }
+        }
+        
+        function completeSurvey() {
+            document.getElementById('survey-card').style.display = 'none';
+            document.getElementById('completion-card').style.display = 'block';
+
+            const completionText = document.querySelector('.completion-text');
+            if (completionText && surveyMeta?.title) {
+                completionText.textContent = `Your responses for "${surveyMeta.title}" have been submitted successfully. Thank you for taking the time to share your valuable insights with us.`;
+            }
+            
+            // Show experience feedback widget after 2 seconds
+            setTimeout(() => {
+                showExperienceWidget();
+            }, 2000);
+        }
+        
+        // Voice Recording
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await transcribeAudio(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // Update UI
+                const btn = document.getElementById('voice-btn');
+                const icon = document.getElementById('voice-icon');
+                const status = document.getElementById('voice-status');
+                
+                btn.classList.add('recording');
+                icon.className = 'fas fa-stop';
+                status.textContent = 'Recording... Click to stop';
+                
+            } catch (error) {
+                console.error('Recording error:', error);
+                showStatus('error', 'Could not access microphone. Please check permissions.');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            isRecording = false;
+            
+            // Update UI
+            const btn = document.getElementById('voice-btn');
+            const icon = document.getElementById('voice-icon');
+            const status = document.getElementById('voice-status');
+            
+            btn.classList.remove('recording');
+            icon.className = 'fas fa-microphone';
+            status.textContent = 'Processing audio...';
+        }
+        
+        async function transcribeAudio(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('audio_file', audioBlob, 'recording.wav');
+                
+                const response = await fetch('/api/fast-interview/transcribe-audio', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const answerInput = document.getElementById('answer-input');
+                    answerInput.value = result.text;
+                    document.getElementById('voice-status').textContent = 'Transcription complete!';
+                    showStatus('success', 'Voice input transcribed successfully!');
+                    setTimeout(() => {
+                        document.getElementById('voice-status').textContent = 'Click to speak your answer';
+                    }, 1800);
+                } else {
+                    throw new Error('Transcription failed');
+                }
+                
+            } catch (error) {
+                console.error('Transcription error:', error);
+                document.getElementById('voice-status').textContent = 'Click to speak your answer';
+                showStatus('error', 'Could not transcribe audio. Please try typing instead.');
+            }
+        }
+        
+        // Utility Functions
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.className = `status-message status-${type}`;
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            document.getElementById('status-message').style.display = 'none';
+        }
+        
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            if (/tablet|ipad|playbook|silk/i.test(ua)) return 'tablet';
+            if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(ua)) return 'mobile';
+            return 'desktop';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EXPERIENCE FEEDBACK WIDGET (30-second max for respondents)
+        // ═══════════════════════════════════════════════════════════════
+        
+        function showExperienceWidget() {
+            if (document.getElementById('experienceWidget')) return; // Already shown
+            
+            const feedbackSessionId = sessionId || ('session_' + Date.now());
+            const feedbackSurveyId = surveyId || 1;
+            
+            const widgetHTML = `
+                <div class="experience-widget" id="experienceWidget" style="
+                    position: fixed; bottom: 20px; right: 20px; background: white;
+                    border: 1px solid var(--border); border-radius: var(--radius-xl);
+                    padding: 20px; width: 280px; max-width: calc(100vw - 40px);
+                    box-shadow: var(--shadow-lg); z-index: 9999;
+                    transform: translateX(320px); transition: transform 0.3s ease;
+                ">
+                    <h4 style="margin: 0 0 12px; color: var(--text-dark); font-size: 0.95rem;">
+                        How was your experience? 
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">(30 sec)</span>
+                    </h4>
+                    
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;" id="quickRating">
+                        <button class="quick-rating-btn" data-rating="1" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😞</button>
+                        <button class="quick-rating-btn" data-rating="2" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😐</button>
+                        <button class="quick-rating-btn" data-rating="3" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">🙂</button>
+                        <button class="quick-rating-btn" data-rating="4" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😊</button>
+                        <button class="quick-rating-btn" data-rating="5" style="
+                            background: var(--cream); border: 1px solid var(--border); border-radius: 50%;
+                            width: 32px; height: 32px; cursor: pointer; transition: all 0.2s ease;
+                        ">😍</button>
+                    </div>
+
+                    <textarea id="experienceComment" placeholder="Quick feedback (optional)..." style="
+                        width: 100%; background: var(--cream); border: 1px solid var(--border);
+                        border-radius: 8px; padding: 8px 10px; font-family: inherit;
+                        font-size: 0.8rem; resize: none; height: 50px; margin-bottom: 12px;
+                    "></textarea>
+
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <button onclick="closeExperienceWidget()" style="
+                            background: transparent; border: none; color: var(--text-muted);
+                            padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
+                        ">Skip</button>
+                        <button onclick="submitExperience('${feedbackSessionId}', ${feedbackSurveyId})" style="
+                            background: var(--gold); border: none; color: white;
+                            padding: 6px 12px; border-radius: 6px; font-size: 0.75rem;
+                            cursor: pointer; font-weight: 500;
+                        ">Submit</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', widgetHTML);
+            
+            // Show widget with animation
+            requestAnimationFrame(() => {
+                document.getElementById('experienceWidget').style.transform = 'translateX(0)';
+            });
+
+            // Setup rating buttons
+            document.querySelectorAll('.quick-rating-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.quick-rating-btn').forEach(b => {
+                        b.style.background = 'var(--cream)';
+                        b.style.borderColor = 'var(--border)';
+                    });
+                    btn.style.background = 'var(--gold)';
+                    btn.style.borderColor = 'var(--gold)';
+                    btn.classList.add('selected');
+                });
+            });
+
+            // Auto-hide after 30 seconds
+            setTimeout(closeExperienceWidget, 30000);
+        }
+
+        async function submitExperience(sessionId, surveyId) {
+            const selectedRating = document.querySelector('.quick-rating-btn.selected');
+            const rating = selectedRating ? parseInt(selectedRating.dataset.rating) : null;
+            const comment = document.getElementById('experienceComment').value.trim();
+
+            try {
+                const response = await fetch('/api/feedback/respondent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        survey_id: resolvedSurveyId || parseInt(surveyId, 10),
+                        overall_rating: rating,
+                        quick_feedback: comment || null,
+                        completion_time: Date.now() - (window.surveyStartTime || Date.now()),
+                        channel_used: 'web'
+                    })
+                });
+
+                if (response.ok) {
+                    showExperienceThankYou();
+                } else {
+                    console.warn('Experience feedback submission failed');
+                    closeExperienceWidget();
+                }
+            } catch (error) {
+                console.error('Experience submission error:', error);
+                closeExperienceWidget();
+            }
+        }
+
+        function showExperienceThankYou() {
+            const widget = document.getElementById('experienceWidget');
+            if (widget) {
+                widget.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="color: var(--gold); font-size: 2rem; margin-bottom: 8px;">✓</div>
+                        <p style="color: var(--text-dark); margin: 0; font-size: 0.9rem;">Thank you!</p>
+                    </div>
+                `;
+                setTimeout(closeExperienceWidget, 2000);
+            }
+        }
+
+        function closeExperienceWidget() {
+            const widget = document.getElementById('experienceWidget');
+            if (widget) {
+                widget.style.transform = 'translateX(320px)';
+                setTimeout(() => widget.remove(), 300);
+            }
+        }
+
+        // Track survey start time for completion duration
+        window.surveyStartTime = Date.now();
+
+        // Keyboard shortcut for faster completion
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                nextQuestion();
+            }
+        });
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initSurvey);
+    </script>
+</body>
+</html>
