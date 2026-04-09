@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Streamlit Operations App
+
+The repository also includes an operational Streamlit app at the repo root:
+
+- Entrypoint: `streamlit_app.py`
+- Config: `.streamlit/config.toml`
+- Deployment guide: `STREAMLIT_DEPLOY.md`
+
+Run from repository root:
+
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```

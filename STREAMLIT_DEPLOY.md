@@ -31,6 +31,35 @@ This repository can now run as a Streamlit app using `streamlit_app.py`.
 3. In app **Secrets**, add keys from `.streamlit/secrets.toml.example`.
 4. Deploy.
 
+## Streamlit Cloud checklist (repo-specific)
+
+Before clicking deploy, verify:
+
+1. **Main file path** is set to `streamlit_app.py`.
+2. **Python version** uses `runtime.txt` (`python-3.11`).
+3. **Secrets** include at least:
+    - `GEMINI_API_KEY` (AI generation)
+    - `ASSEMBLYAI_API_KEY` (voice features)
+    - `JWT_SECRET` (recommended)
+4. **Persistent data path**:
+    - Set `DATA_DIR` to a mounted persistent path if available.
+    - If not set, default local storage can reset between deploys/restarts.
+5. **Smoke test after deploy**:
+    - Open **Health Check** tab in the app.
+    - Confirm DB connectivity reports healthy.
+    - Run **AI smoke test** button and confirm output is returned.
+
+## Troubleshooting
+
+- **Import "streamlit" could not be resolved**:
+   - Install dependencies with `pip install -r requirements.txt`.
+- **AI features fail**:
+   - Recheck `GEMINI_API_KEY` in Streamlit secrets.
+- **No data after restart**:
+   - Configure `DATA_DIR` to persistent storage.
+- **DB path confusion**:
+   - Use the **Health Check** tab to see active DB and data directory at runtime.
+
 ## Notes
 
 - If `GEMINI_API_KEY` is missing, AI generation falls back to non-AI defaults where available.

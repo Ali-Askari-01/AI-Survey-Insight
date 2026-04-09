@@ -266,6 +266,57 @@ def app_survey_library() -> None:
             st.error(f"Could not generate consent form: {e}")
 
 
+def app_health_check(bootstrap_info: Dict[str, Any]) -> None:
+    st.subheader("Health Check")
+    st.caption("Quick deployment diagnostics for Streamlit Cloud or local runs.")
+
+    st.markdown("### Runtime")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write(f"Started at: `{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(bootstrap_info['started_at']))}`")
+        st.write(f"Data directory: `{os.getenv('DATA_DIR', './data')}`")
+    with c2:
+        st.write(f"Database path: `{bootstrap_info['db_path']}`")
+        st.write(f"Database exists: {'Yes' if os.path.exists(bootstrap_info['db_path']) else 'No'}")
+
+    st.markdown("### Secrets and Environment")
+    checks = [
+        ("GEMINI_API_KEY", bool(os.getenv("GEMINI_API_KEY")), "Needed for AI generation"),
+        ("ASSEMBLYAI_API_KEY", bool(os.getenv("ASSEMBLYAI_API_KEY")), "Needed for voice transcription"),
+        ("JWT_SECRET", bool(os.getenv("JWT_SECRET")), "Recommended for auth/security"),
+    ]
+
+    for name, ok, note in checks:
+        if ok:
+            st.success(f"{name}: configured ({note})")
+        else:
+            st.warning(f"{name}: missing ({note})")
+
+    st.markdown("### Database Connectivity")
+    try:
+        surveys_count = db_scalar("SELECT COUNT(*) AS c FROM surveys")
+        questions_count = db_scalar("SELECT COUNT(*) AS c FROM questions")
+        st.success("Database connection looks healthy.")
+        st.write(f"Surveys: `{surveys_count}` | Questions: `{questions_count}`")
+    except Exception as e:
+        st.error(f"Database query failed: {e}")
+
+    st.markdown("### AI Service Check")
+    if st.button("Run AI smoke test", type="secondary"):
+        try:
+            result = AIService.generate_consent_form(
+                "Smoke Test Survey",
+                "Verify that AI generation works in this deployment.",
+            )
+            if result:
+                st.success("AI generation succeeded.")
+                st.text_area("Sample output", result, height=220)
+            else:
+                st.warning("AI call returned an empty result.")
+        except Exception as e:
+            st.error(f"AI smoke test failed: {e}")
+
+
 def main() -> None:
     bootstrap_info = bootstrap()
     app_sidebar(bootstrap_info["db_path"])
@@ -273,7 +324,12 @@ def main() -> None:
     st.title("AI Survey Software - Streamlit Deployment")
     st.caption("Operational Streamlit frontend for survey creation and monitoring")
 
-    tab1, tab2, tab3 = st.tabs(["Overview", "Create Survey", "Survey Library"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Overview",
+        "Create Survey",
+        "Survey Library",
+        "Health Check",
+    ])
 
     with tab1:
         app_overview()
@@ -281,6 +337,8 @@ def main() -> None:
         app_create_survey()
     with tab3:
         app_survey_library()
+    with tab4:
+        app_health_check(bootstrap_info)
 
 
 if __name__ == "__main__":
