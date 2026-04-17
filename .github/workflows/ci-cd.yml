@@ -57,19 +57,12 @@ jobs:
         run: |
           python -c "from backend.main import app; print('All imports OK')"
 
-      - name: Install frontend deps
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
-
-      - name: Run frontend tests
-        working-directory: ./frontend
-        run: npm run lint
+      - name: Validate legacy static frontend
+        run: |
+          test -f frontend_legacy/index.html
+          test -f frontend_legacy/landing.html
+          test -d frontend_legacy/css
+          test -d frontend_legacy/js
 
   # ─── Step 2: Build Docker Image ───
   build:

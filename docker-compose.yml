@@ -30,7 +30,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./frontend:/app/frontend
+      - ./frontend_legacy:/app/frontend_legacy
     environment:
       - APP_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -44,23 +44,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    networks:
-      - app-network
-
-  # ─── Next.js Frontend ───
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: ai-survey-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
     networks:
       - app-network
 
@@ -101,7 +84,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./frontend:/usr/share/nginx/html:ro
+      - ./frontend_legacy:/usr/share/nginx/html:ro
     depends_on:
       - backend
     restart: unless-stopped

@@ -69,7 +69,16 @@
             <div class="hero-trust-row">
                 <span><i class="fas fa-lock"></i> No credit card</span>
                 <span><i class="fas fa-bolt"></i> 2-min setup</span>
-                <span><i class="fas fa-robot"></i> AI-powered</span>
+                <span><i class="fas fa-server"></i> FastAPI + SQLite</span>
+            </div>
+
+            <div class="live-platform-pulse" id="live-platform-pulse" aria-live="polite">
+                <div class="live-chip live-chip-status" id="pulse-status">
+                    <i class="fas fa-circle-notch fa-spin"></i> Checking backend...
+                </div>
+                <div class="live-chip"><i class="fas fa-server"></i> FastAPI API</div>
+                <div class="live-chip"><i class="fas fa-database"></i> <span id="pulse-db">SQLite</span></div>
+                <div class="live-chip"><i class="fas fa-gauge-high"></i> <span id="pulse-latency">-- ms</span></div>
             </div>
 
             <!-- Floating Chat Mockup (animated typewriter) -->
@@ -96,20 +105,20 @@
     <div class="stats-bar">
         <div class="stats-bar-inner">
             <div class="stat-item">
-                <div class="stat-number" data-target="10000">10,000+</div>
-                <div class="stat-desc">Surveys Created</div>
+                <div class="stat-number" id="platform-status">LIVE</div>
+                <div class="stat-desc">Platform Status</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">3x</div>
-                <div class="stat-desc">Richer Responses</div>
+                <div class="stat-number" id="platform-uptime">--</div>
+                <div class="stat-desc">Backend Uptime</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">&lt; 2 min</div>
-                <div class="stat-desc">Setup Time</div>
+                <div class="stat-number" id="platform-latency">-- ms</div>
+                <div class="stat-desc">Health Check Latency</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">Real-time</div>
-                <div class="stat-desc">Analysis</div>
+                <div class="stat-number" id="platform-db">SQLite</div>
+                <div class="stat-desc">Database Engine</div>
             </div>
         </div>
     </div>
@@ -321,7 +330,7 @@
             });
         };
 
-        // Counter animation for stats
+        // Counter animation for legacy marketing stats
         const animateCounters = () => {
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -349,8 +358,110 @@
             document.querySelectorAll('[data-target]').forEach(el => observer.observe(el));
         };
 
+        const isReducedMode =
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+            (navigator.connection && navigator.connection.saveData === true);
+
+        const formatUptime = (seconds) => {
+            if (typeof seconds !== 'number' || Number.isNaN(seconds)) return '--';
+            const total = Math.max(0, Math.floor(seconds));
+            const hrs = Math.floor(total / 3600);
+            const mins = Math.floor((total % 3600) / 60);
+            const secs = total % 60;
+            if (hrs > 0) return `${hrs}h ${mins}m`;
+            if (mins > 0) return `${mins}m ${secs}s`;
+            return `${secs}s`;
+        };
+
+        const updatePulseUI = (health) => {
+            const status = (health.status || '').toLowerCase();
+            const statusEl = document.getElementById('pulse-status');
+            const dbEl = document.getElementById('pulse-db');
+            const latencyEl = document.getElementById('pulse-latency');
+            const statStatus = document.getElementById('platform-status');
+            const statUptime = document.getElementById('platform-uptime');
+            const statLatency = document.getElementById('platform-latency');
+            const statDb = document.getElementById('platform-db');
+
+            const labelMap = {
+                healthy: 'Healthy',
+                warning: 'Warning',
+                degraded: 'Degraded'
+            };
+            const label = labelMap[status] || 'Unknown';
+            const iconMap = {
+                healthy: 'fa-circle-check',
+                warning: 'fa-triangle-exclamation',
+                degraded: 'fa-heart-crack'
+            };
+            const icon = iconMap[status] || 'fa-circle-question';
+
+            if (statusEl) {
+                statusEl.classList.remove('is-healthy', 'is-warning', 'is-degraded');
+                statusEl.classList.add(`is-${status}`);
+                statusEl.innerHTML = `<i class="fas ${icon}"></i> Backend ${label}`;
+            }
+
+            const latency = Number.isFinite(health.health_check_ms) ? `${Math.round(health.health_check_ms)} ms` : '-- ms';
+            const dbEngine = health.database?.engine ? String(health.database.engine).toUpperCase() : 'SQLITE';
+            const uptimeText = health.uptime || formatUptime(health.uptime_seconds);
+
+            if (dbEl) dbEl.textContent = dbEngine;
+            if (latencyEl) latencyEl.textContent = latency;
+
+            if (statStatus) statStatus.textContent = label.toUpperCase();
+            if (statUptime) statUptime.textContent = uptimeText || '--';
+            if (statLatency) statLatency.textContent = latency;
+            if (statDb) statDb.textContent = dbEngine;
+
+            document.body.classList.remove('backend-healthy', 'backend-warning', 'backend-degraded');
+            document.body.classList.add(`backend-${status || 'degraded'}`);
+        };
+
+        const updatePulseOffline = () => {
+            const statusEl = document.getElementById('pulse-status');
+            const statStatus = document.getElementById('platform-status');
+            if (statusEl) {
+                statusEl.classList.remove('is-healthy', 'is-warning', 'is-degraded');
+                statusEl.classList.add('is-degraded');
+                statusEl.innerHTML = '<i class="fas fa-circle-xmark"></i> Backend unreachable';
+            }
+            if (statStatus) statStatus.textContent = 'OFFLINE';
+        };
+
+        const loadPlatformPulse = async () => {
+            try {
+                const response = await fetch('/health', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`Health check failed: ${response.status}`);
+                const health = await response.json();
+                updatePulseUI(health);
+            } catch (error) {
+                console.warn('Health check unavailable:', error);
+                updatePulseOffline();
+            }
+        };
+
         // Typewriter animation for hero chat mockup
         const typewriterSequence = () => {
+            if (isReducedMode) {
+                const first = document.getElementById('tw-msg-1');
+                const second = document.getElementById('tw-msg-2');
+                const third = document.getElementById('tw-msg-3');
+                if (first) {
+                    first.style.display = '';
+                    first.textContent = 'What would you like to learn from your users today?';
+                }
+                if (second) {
+                    second.style.display = '';
+                    second.textContent = 'I want to understand why users abandon onboarding.';
+                }
+                if (third) {
+                    third.style.display = '';
+                    third.textContent = 'Great. InsightAI can generate adaptive questions instantly.';
+                }
+                return;
+            }
+
             const messages = [
                 { id: 'tw-msg-1', text: 'What would you like to learn from your users today?', delay: 400 },
                 { id: 'tw-msg-2', text: 'I want to understand why users abandon onboarding', delay: 1800 },
@@ -461,9 +572,14 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            if (isReducedMode) {
+                document.body.classList.add('reduced-motion');
+            }
             animateOnScroll();
             animateCounters();
             typewriterSequence();
+            loadPlatformPulse();
+            setInterval(loadPlatformPulse, 45000);
         });
     </script>
 </body>

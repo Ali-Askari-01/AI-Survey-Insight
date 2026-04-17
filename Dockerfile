@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
-COPY frontend/ ./frontend/
+COPY frontend_legacy/ ./frontend_legacy/
 COPY gunicorn.conf.py .
 
 # Create data directories (Railway volume mounts over /app/data if configured)

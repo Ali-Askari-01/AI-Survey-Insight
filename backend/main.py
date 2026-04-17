@@ -9,7 +9,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.responses import RedirectResponse
 import os
 import json
 import time
@@ -166,27 +165,20 @@ app.include_router(survey_publish.router)
 app.include_router(backup_routes.router)
 app.include_router(governance_routes.router)
 
-# Serve frontend static files
-frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+# Serve legacy frontend static files
 legacy_frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend_legacy")
-if os.path.exists(frontend_dir):
+if os.path.exists(legacy_frontend_dir):
     for sub, route in [("css", "/css"), ("js", "/js"), ("assets", "/assets")]:
-        sub_dir = os.path.join(frontend_dir, sub)
+        sub_dir = os.path.join(legacy_frontend_dir, sub)
         if os.path.isdir(sub_dir):
             app.mount(route, StaticFiles(directory=sub_dir), name=sub)
 
 
 def _serve_frontend_file(filename: str, fallback: str | None = None):
-    """Serve a frontend file from Next.js or legacy static directories, with safe fallback."""
-    candidates = [
-        os.path.join(frontend_dir, filename),
-        os.path.join(legacy_frontend_dir, filename),
-    ]
+    """Serve a frontend file from the legacy static directory, with safe fallback."""
+    candidates = [os.path.join(legacy_frontend_dir, filename)]
     if fallback:
-        candidates.extend([
-            os.path.join(frontend_dir, fallback),
-            os.path.join(legacy_frontend_dir, fallback),
-        ])
+        candidates.append(os.path.join(legacy_frontend_dir, fallback))
 
     for path in candidates:
         if os.path.exists(path):
@@ -196,19 +188,9 @@ def _serve_frontend_file(filename: str, fallback: str | None = None):
         status_code=503,
         content={
             "detail": "Frontend UI is not available from backend static files.",
-            "hint": "Run/deploy the Next.js frontend service and open that URL.",
+            "hint": "Ensure frontend_legacy files are present in deployment image.",
         },
     )
-
-
-def _redirect_to_next(request: Request, path: str):
-    """Redirect browser requests to the Next.js frontend when URL is configured."""
-    next_url = os.environ.get("FRONTEND_APP_URL", "http://localhost:3000").rstrip("/")
-    query = request.url.query
-    target = f"{next_url}{path}"
-    if query:
-        target = f"{target}?{query}"
-    return RedirectResponse(url=target, status_code=307)
 
 
 # ═══════════════════════════════════════════════════
@@ -289,15 +271,15 @@ async def startup():
 # PAGE ROUTES
 # ═══════════════════════════════════════════════════
 @app.get("/")
-def serve_landing(request: Request):
-    """Serve landing via Next.js frontend."""
-    return _redirect_to_next(request, "/")
+def serve_landing():
+    """Serve the static marketing landing page."""
+    return _serve_frontend_file("landing.html", fallback="index.html")
 
 
 @app.get("/app")
-def serve_frontend(request: Request):
-    """Serve the main app via Next.js frontend."""
-    return _redirect_to_next(request, "/app")
+def serve_frontend():
+    """Serve the main static app shell."""
+    return _serve_frontend_file("index.html", fallback="landing.html")
 
 
 @app.get("/survey-form.html")
