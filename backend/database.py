@@ -6,8 +6,13 @@ Handles all database initialization, connection management, and schema creation.
 import sqlite3
 import os
 import json
+from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
 
 def _resolve_data_dir() -> str:
     """Resolve persistent data directory with safe fallbacks.
@@ -19,12 +24,13 @@ def _resolve_data_dir() -> str:
     """
     env_data_dir = os.environ.get("DATA_DIR", "").strip()
     if env_data_dir:
-        return env_data_dir
+        return str(Path(env_data_dir).expanduser().resolve())
 
     if os.path.isdir("/data"):
-        return "/data"
+        return str(Path("/data").resolve())
 
-    return os.path.join(os.path.dirname(__file__), "..", "data")
+    # Use an absolute, resolved path for hosted environments (e.g., PythonAnywhere).
+    return str((BASE_DIR / ".." / "data").resolve())
 
 
 _data_dir = _resolve_data_dir()
