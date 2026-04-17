@@ -2,25 +2,25 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "framework": null,
-  "installCommand": "",
-  "buildCommand": "",
-  "outputDirectory": "frontend_legacy",
   "functions": {
     "api/[...path].js": {
       "maxDuration": 60
     }
   },
-  "cleanUrls": true,
+  "cleanUrls": false,
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/app", "destination": "/index" },
-    { "source": "/survey-form", "destination": "/survey-form" },
-    { "source": "/survey-chat", "destination": "/survey-chat" },
-    { "source": "/survey-audio", "destination": "/survey-audio" },
-    { "source": "/analytics-dashboard", "destination": "/analytics-dashboard" },
-    { "source": "/interview/:shareCode/:channel", "destination": "/interview" },
-    { "source": "/interview/:shareCode", "destination": "/interview" },
-    { "source": "/", "destination": "/landing" },
-    { "source": "/:path*", "destination": "/landing" }
+    { "source": "/css/:path*", "destination": "/frontend_legacy/css/:path*" },
+    { "source": "/js/:path*", "destination": "/frontend_legacy/js/:path*" },
+    { "source": "/assets/:path*", "destination": "/frontend_legacy/assets/:path*" },
+    { "source": "/app", "destination": "/frontend_legacy/index.html" },
+    { "source": "/survey-form", "destination": "/frontend_legacy/survey-form.html" },
+    { "source": "/survey-chat", "destination": "/frontend_legacy/survey-chat.html" },
+    { "source": "/survey-audio", "destination": "/frontend_legacy/survey-audio.html" },
+    { "source": "/analytics-dashboard", "destination": "/frontend_legacy/analytics-dashboard.html" },
+    { "source": "/interview/:shareCode/:channel", "destination": "/frontend_legacy/interview.html" },
+    { "source": "/interview/:shareCode", "destination": "/frontend_legacy/interview.html" },
+    { "source": "/", "destination": "/frontend_legacy/landing.html" },
+    { "source": "/:path*", "destination": "/frontend_legacy/landing.html" }
   ]
 }
