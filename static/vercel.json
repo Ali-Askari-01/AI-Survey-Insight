@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/app", "destination": "/index.html" },
+    { "source": "/survey-form", "destination": "/survey-form.html" },
+    { "source": "/survey-chat", "destination": "/survey-chat.html" },
+    { "source": "/survey-audio", "destination": "/survey-audio.html" },
+    { "source": "/interview/:shareCode/:channel", "destination": "/interview.html" },
+    { "source": "/interview/:shareCode", "destination": "/interview.html" }
+  ]
+}
